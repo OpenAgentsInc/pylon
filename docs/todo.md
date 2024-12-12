@@ -3,10 +3,10 @@
 ## Phase 1: MCP Handshake Implementation
 
 ### 1. Basic Tauri Setup
-- [ ] Initialize Tauri project with Rust backend and React frontend
-- [ ] Set up development environment
-- [ ] Configure build system
-- [ ] Add required dependencies:
+- [x] Initialize Tauri project with Rust backend and React frontend
+- [x] Set up development environment
+- [x] Configure build system
+- [x] Add required dependencies:
   - tokio
   - tokio-tungstenite
   - jsonrpc-core
