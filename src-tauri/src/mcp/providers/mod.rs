@@ -15,6 +15,8 @@ pub enum ResourceError {
     InvalidPath(String),
     #[error("IO error: {0}")]
     IoError(#[from] std::io::Error),
+    #[error("Watch error: {0}")]
+    WatchError(#[from] notify::Error),
 }
 
 /// A provider that can access resources
