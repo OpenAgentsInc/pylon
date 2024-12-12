@@ -21,10 +21,11 @@ impl MCPServer {
 
         info!("Starting MCP server on port {}", self.port);
 
-        HttpServer::new(|| {
+        HttpServer::new(move || {
             App::new()
                 .route("/mcp", web::get().to(handle_connection))
         })
+        .workers(2)
         .bind(("127.0.0.1", self.port))?
         .run()
         .await
@@ -40,7 +41,6 @@ async fn handle_connection(req: HttpRequest, body: web::Payload) -> Result<HttpR
     // Spawn client handler
     actix_web::rt::spawn(async move {
         let mut last_heartbeat = Instant::now();
-        let mut interval = actix_web::rt::time::interval(Duration::from_secs(5));
 
         while let Some(Ok(msg)) = msg_stream.next().await {
             match msg {
