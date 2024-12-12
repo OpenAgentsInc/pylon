@@ -15,10 +15,10 @@ function App() {
 
   return (
     <main className="container">
-      <h1>Welcome to Tauri + React</h1>
+      <h1>Pylon</h1>
 
-      <Card title="Left" mode="left">
-        <p>Card with title on the left.</p>
+      <Card title="Welcome" mode="left">
+        <p>We are going to do cool stuff.</p>
       </Card>
 
       <form
