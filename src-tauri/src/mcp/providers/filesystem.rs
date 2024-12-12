@@ -8,7 +8,7 @@ use url::Url;
 use mime_guess::from_path;
 
 use super::{ResourceProvider, ResourceError};
-use crate::mcp::types::{Resource, ResourceContents, TextResourceContents, BlobResourceContents};
+use crate::mcp::types::{Resource, ResourceContents, TextResourceContents};
 
 pub struct FileSystemProvider {
     root_path: PathBuf,
@@ -131,7 +131,7 @@ impl ResourceProvider for FileSystemProvider {
             return Ok(());
         }
         
-        let watcher = notify::recommended_watcher(move |res| {
+        let mut watcher = notify::recommended_watcher(move |res| {
             match res {
                 Ok(event) => {
                     // Handle file system events
