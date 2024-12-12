@@ -1,7 +1,8 @@
-import { useState } from "react";
-import reactLogo from "./assets/react.svg";
-import { invoke } from "@tauri-apps/api/core";
-import "./App.css";
+import "./App.css"
+import { useState } from "react"
+import { invoke } from "@tauri-apps/api/core"
+import reactLogo from "./assets/react.svg"
+import Card from "./components/Card"
 
 function App() {
   const [greetMsg, setGreetMsg] = useState("");
@@ -15,6 +16,10 @@ function App() {
   return (
     <main className="container">
       <h1>Welcome to Tauri + React</h1>
+
+      <Card title="Left" mode="left">
+        <p>Card with title on the left.</p>
+      </Card>
 
       <div className="row">
         <a href="https://vitejs.dev" target="_blank">
