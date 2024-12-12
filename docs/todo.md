@@ -23,7 +23,7 @@
 - [x] Implement core MCP types from schema
 - [x] Create initialization request/response handlers
 - [ ] Add client capability negotiation
-- [ ] Implement basic resource handling
+- [x] Implement basic resource handling
 
 ### 4. Basic Client (for testing)
 - [ ] Create test client implementation
@@ -52,10 +52,10 @@
    - [ ] Add tests for capability negotiation
 
 2. **Resource Handling**
-   - [ ] Implement resource provider interface
-   - [ ] Add file system resource provider
-   - [ ] Create resource update notifications
-   - [ ] Add tests for resource handling
+   - [x] Implement resource provider interface
+   - [x] Add file system resource provider
+   - [x] Create resource update notifications
+   - [x] Add tests for resource handling
 
 3. **Frontend Integration**
    - [ ] Create WebSocket connection component
