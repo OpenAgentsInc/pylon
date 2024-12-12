@@ -62,29 +62,62 @@ cargo add log
    - Client state update tests
    - Client removal tests
 
-## Next Steps: File System Integration
+## 2024-03-21: File System Integration
 
-The first logical feature to test will be file system access, because:
-1. It's a fundamental capability that many other features depend on
-2. It's easy to test with local files
-3. It maps directly to the MCP roots capability
+### Added Resource Provider Implementation
+- Created providers module in `src-tauri/src/mcp/providers/mod.rs`
+- Implemented filesystem provider in `src-tauri/src/mcp/providers/filesystem.rs`
+- Added comprehensive tests in `src-tauri/src/tests/mcp/providers/filesystem_tests.rs`
+
+### Implementation Details
+1. **Resource Provider Interface**
+   - Defined core trait for resource access
+   - Added error types and handling
+   - Implemented async operations
+
+2. **File System Provider**
+   - Directory listing functionality
+   - File content reading
+   - Path validation and security
+   - File system watching support
+
+3. **Testing**
+   - Directory listing tests
+   - File reading tests
+   - Path traversal security tests
+   - Watch/unwatch functionality tests
+
+### Added Dependencies
+```bash
+cargo add async-trait
+cargo add thiserror
+cargo add notify
+cargo add mime_guess
+cargo add url
+cargo add tempfile --dev
+```
+
+## Next Steps: Client Capability Negotiation
+
+The next logical feature to implement is client capability negotiation, because:
+1. It's a core part of the MCP protocol
+2. It's needed for proper resource provider integration
+3. It enables dynamic feature discovery
 
 ### Planned Implementation
-1. **File System Provider**
-   - Basic file/directory listing
-   - File content reading
-   - Change notifications
-   - Access control
+1. **Client Capability Storage**
+   - Capability versioning
+   - Feature flags
+   - Dynamic updates
 
-2. **Test Cases**
-   - Directory listing
-   - File reading
-   - Change detection
-   - Permission handling
+2. **Capability Matching**
+   - Version compatibility
+   - Feature negotiation
+   - Fallback handling
 
 3. **Integration Points**
-   - MCP roots capability
-   - Resource provider interface
-   - Change notification system
+   - Protocol initialization
+   - Resource provider capabilities
+   - Tool provider capabilities
 
-This will give us a concrete, testable feature that demonstrates the full MCP protocol flow from capability negotiation to actual resource access.
+This will give us a solid foundation for feature discovery and compatibility management.
