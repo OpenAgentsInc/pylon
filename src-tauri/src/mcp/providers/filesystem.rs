@@ -7,7 +7,7 @@ use async_trait::async_trait;
 use url::Url;
 use mime_guess::from_path;
 
-use super::{ResourceProvider, ResourceError, ResourcePath};
+use super::{ResourceProvider, ResourceError};
 use crate::mcp::types::{Resource, ResourceContents, TextResourceContents, BlobResourceContents};
 
 pub struct FileSystemProvider {
@@ -139,10 +139,10 @@ impl ResourceProvider for FileSystemProvider {
                 },
                 Err(e) => println!("Watch error: {:?}", e),
             }
-        }).map_err(|e| ResourceError::IoError(e))?;
+        }).map_err(ResourceError::WatchError)?;
         
         watcher.watch(&path, RecursiveMode::Recursive)
-            .map_err(|e| ResourceError::IoError(e))?;
+            .map_err(ResourceError::WatchError)?;
             
         self.watchers.write().await.insert(
             path.to_str().unwrap().to_string(),
