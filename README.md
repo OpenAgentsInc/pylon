@@ -1,7 +1,8 @@
-# Tauri + React + Typescript
+# Pylon
 
-This template should help get you started developing with Tauri, React and Typescript in Vite.
+Pylon is the node software of OpenAgents. It's a desktop app including an [MCP server](https://modelcontextprotocol.io/), [NIP-90](https://github.com/nostr-protocol/nips/blob/master/90.md) service provider, and bitcoin wallet via the Breez SDK. Node runners earn bitcoin processing requests to the OpenAgents network from users of our [Onyx](https://github.com/OpenAgentsInc/onyx) app.
 
-## Recommended IDE Setup
-
-- [VS Code](https://code.visualstudio.com/) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
+## Tech stack
+- Tauri
+- Rust
+- React/TypeScript
