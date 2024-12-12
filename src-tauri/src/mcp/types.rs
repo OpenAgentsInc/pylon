@@ -1,13 +1,13 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Implementation {
     pub name: String,
     pub version: String,
 }
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ClientCapabilities {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub experimental: Option<HashMap<String, HashMap<String, serde_json::Value>>>,
@@ -17,12 +17,12 @@ pub struct ClientCapabilities {
     pub sampling: Option<HashMap<String, serde_json::Value>>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RootsCapability {
     pub list_changed: bool,
 }
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ServerCapabilities {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub experimental: Option<HashMap<String, HashMap<String, serde_json::Value>>>,
@@ -36,36 +36,36 @@ pub struct ServerCapabilities {
     pub tools: Option<ToolsCapability>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PromptsCapability {
     pub list_changed: bool,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ResourcesCapability {
     pub list_changed: bool,
     pub subscribe: bool,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ToolsCapability {
     pub list_changed: bool,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InitializeRequest {
     pub method: String,
     pub params: InitializeParams,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InitializeParams {
     pub capabilities: ClientCapabilities,
     pub client_info: Implementation,
     pub protocol_version: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InitializeResult {
     pub capabilities: ServerCapabilities,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -74,14 +74,14 @@ pub struct InitializeResult {
     pub server_info: Implementation,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Role {
     Assistant,
     User,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TextContent {
     pub text: String,
     #[serde(rename = "type")]
@@ -90,7 +90,7 @@ pub struct TextContent {
     pub annotations: Option<Annotations>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Annotations {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub audience: Option<Vec<Role>>,
@@ -98,7 +98,7 @@ pub struct Annotations {
     pub priority: Option<f32>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Resource {
     pub name: String,
     pub uri: String,
@@ -111,7 +111,7 @@ pub struct Resource {
 }
 
 // JSON-RPC types
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JsonRpcRequest {
     pub jsonrpc: String,
     pub id: serde_json::Value,
@@ -119,21 +119,21 @@ pub struct JsonRpcRequest {
     pub params: serde_json::Value,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JsonRpcResponse {
     pub jsonrpc: String,
     pub id: serde_json::Value,
     pub result: serde_json::Value,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JsonRpcError {
     pub jsonrpc: String,
     pub id: serde_json::Value,
     pub error: JsonRpcErrorDetail,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JsonRpcErrorDetail {
     pub code: i32,
     pub message: String,
