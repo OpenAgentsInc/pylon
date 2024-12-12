@@ -20,8 +20,8 @@
 - [x] Create connection management system
 
 ### 3. MCP Protocol Implementation
-- [ ] Implement core MCP types from schema
-- [ ] Create initialization request/response handlers
+- [x] Implement core MCP types from schema
+- [x] Create initialization request/response handlers
 - [ ] Add client capability negotiation
 - [ ] Implement basic resource handling
 
@@ -43,74 +43,30 @@
 - [ ] Implement log display
 - [ ] Add configuration interface
 
-## Phase 2: Resource Implementation
+## Next Steps
 
-### 1. File System Provider
-- [ ] Implement basic file system access
-- [ ] Add directory listing
-- [ ] Create file reading functionality
-- [ ] Implement change notifications
+1. **Client Capability Negotiation**
+   - [ ] Implement client capability storage
+   - [ ] Add capability matching logic
+   - [ ] Create capability update handlers
+   - [ ] Add tests for capability negotiation
 
-### 2. Resource Management
-- [ ] Create resource provider interface
-- [ ] Implement resource discovery
-- [ ] Add resource caching
-- [ ] Create update notification system
+2. **Resource Handling**
+   - [ ] Implement resource provider interface
+   - [ ] Add file system resource provider
+   - [ ] Create resource update notifications
+   - [ ] Add tests for resource handling
 
-### 3. Testing
-- [ ] Add resource provider tests
-- [ ] Create file system tests
-- [ ] Implement change notification tests
-- [ ] Add integration tests
+3. **Frontend Integration**
+   - [ ] Create WebSocket connection component
+   - [ ] Add protocol state management
+   - [ ] Implement status display
+   - [ ] Add configuration interface
 
-## Phase 3: Tool Implementation
+## Notes
 
-### 1. Basic Tools
-- [ ] Create tool provider interface
-- [ ] Implement basic tool registration
-- [ ] Add tool discovery
-- [ ] Create tool execution framework
-
-### 2. Testing
-- [ ] Add tool provider tests
-- [ ] Create tool execution tests
-- [ ] Implement tool discovery tests
-- [ ] Add integration tests
-
-## Phase 4: NIP-90 Integration
-
-### 1. Basic Setup
-- [ ] Add Nostr client
-- [ ] Implement basic event handling
-- [ ] Create job management system
-- [ ] Add result delivery
-
-### 2. Testing
-- [ ] Create Nostr client tests
-- [ ] Add event handling tests
-- [ ] Implement job management tests
-- [ ] Create integration tests
-
-## Phase 5: Payment Integration
-
-### 1. Basic Setup
-- [ ] Add Breez SDK
-- [ ] Implement invoice generation
-- [ ] Create payment verification
-- [ ] Add payment timeout handling
-
-### 2. Testing
-- [ ] Create payment generation tests
-- [ ] Add verification tests
-- [ ] Implement timeout tests
-- [ ] Create integration tests
-
-## Immediate Next Steps
-
-The next task is to implement the MCP protocol types and handlers. Let's:
-
-1. Create MCP types from schema
-2. Implement initialization request/response handlers
-3. Add client capability negotiation
-
-Would you like me to proceed with implementing the MCP protocol types?
+- Focus on completing capability negotiation next
+- Keep implementation modular and testable
+- Document all protocol interactions
+- Consider error handling and recovery
+- Add logging for debugging
