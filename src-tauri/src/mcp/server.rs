@@ -17,18 +17,18 @@ impl MCPServer {
     }
 
     pub async fn run(&self) -> std::io::Result<()> {
-        env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
-
         info!("Starting MCP server on port {}", self.port);
 
-        HttpServer::new(move || {
+        let factory = move || {
             App::new()
                 .route("/mcp", web::get().to(handle_connection))
-        })
-        .workers(2)
-        .bind(("127.0.0.1", self.port))?
-        .run()
-        .await
+        };
+
+        HttpServer::new(factory)
+            .workers(2)
+            .bind(("127.0.0.1", self.port))?
+            .run()
+            .await
     }
 }
 
