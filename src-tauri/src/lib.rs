@@ -1,4 +1,5 @@
 use log::info;
+use std::sync::Arc;
 
 pub mod mcp;
 #[cfg(test)]
@@ -15,11 +16,16 @@ pub fn run() {
     // Initialize logging
     env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
     
+    // Create runtime for MCP server
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    
     // Create and spawn MCP server
-    let mcp_server = mcp::MCPServer::new(8080);
-    let mcp_handle = tokio::spawn(async move {
+    let mcp_server = Arc::new(mcp::MCPServer::new(8080));
+    let mcp_server_clone = Arc::clone(&mcp_server);
+    
+    rt.spawn(async move {
         info!("Starting MCP server...");
-        if let Err(e) = mcp_server.run().await {
+        if let Err(e) = mcp_server_clone.run().await {
             log::error!("MCP server error: {}", e);
         }
     });
@@ -31,12 +37,5 @@ pub fn run() {
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 
-    // Ensure MCP server is properly shutdown
-    tokio::runtime::Runtime::new()
-        .unwrap()
-        .block_on(async {
-            if let Err(e) = mcp_handle.await {
-                log::error!("Error joining MCP server task: {}", e);
-            }
-        });
+    // Runtime will be dropped here, cleaning up the MCP server
 }
