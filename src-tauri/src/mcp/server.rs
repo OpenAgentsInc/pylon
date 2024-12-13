@@ -7,7 +7,7 @@ use log::{error, info};
 use super::protocol::MCPProtocol;
 
 pub struct MCPServer {
-    protocol: Arc<MCPProtocol>,
+    pub protocol: Arc<MCPProtocol>,
 }
 
 impl MCPServer {
