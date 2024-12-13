@@ -1,5 +1,4 @@
 use std::sync::Arc;
-use log::error;
 
 pub mod mcp;
 pub mod tests;
