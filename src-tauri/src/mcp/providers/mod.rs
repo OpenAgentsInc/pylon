@@ -4,6 +4,7 @@ use serde::{Serialize, Deserialize};
 use crate::mcp::types::{Resource, ResourceContents};
 
 pub mod filesystem;
+pub mod ollama;
 
 #[derive(Debug, thiserror::Error)]
 pub enum ResourceError {
@@ -17,6 +18,8 @@ pub enum ResourceError {
     IoError(#[from] std::io::Error),
     #[error("Watch error: {0}")]
     WatchError(#[from] notify::Error),
+    #[error("Ollama error: {0}")]
+    OllamaError(String),
 }
 
 /// A provider that can access resources
