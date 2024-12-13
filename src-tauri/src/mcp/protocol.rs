@@ -1,6 +1,6 @@
 use crate::mcp::types::*;
 use crate::mcp::providers::{filesystem::FileSystemProvider, ResourceProvider};
-use crate::mcp::clients::{ClientManager, ClientInfo, ClientCapabilities, RootsCapability};
+use crate::mcp::clients::{ClientManager, ClientInfo};
 use log::{error, info};
 use serde_json::Value;
 use std::error::Error;
@@ -227,7 +227,7 @@ impl MCPProtocol {
 
         serde_json::to_string(&error).unwrap_or_else(|e| {
             format!(
-                r#"{{"jsonrpc":"2.0","id":null,"error":{{"code":-32603,"message":"Error creating error response: {}"}}"}}"#,
+                r#"{{"jsonrpc":"2.0","id":null,"error":{{"code":-32603,"message":"Error creating error response: {}"}}}}"#,
                 e
             )
         })
