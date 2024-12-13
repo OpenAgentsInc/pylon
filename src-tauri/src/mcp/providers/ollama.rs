@@ -20,6 +20,10 @@ pub struct ChatRequest {
 pub struct ChatResponse {
     pub message: ChatMessage,
     pub done: bool,
+    #[serde(default)]
+    pub model: String,
+    #[serde(default)]
+    pub created_at: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -28,11 +32,6 @@ pub struct ModelInfo {
     pub digest: String,
     pub size: u64,
     pub modified_at: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ListModelsResponse {
-    pub models: Vec<ModelInfo>,
 }
 
 #[derive(Debug)]
@@ -61,8 +60,8 @@ impl OllamaProvider {
         }
 
         let response_text = response.text().await?;
-        let response: ListModelsResponse = serde_json::from_str(&response_text)?;
-        Ok(response.models)
+        let models: Vec<ModelInfo> = serde_json::from_str(&response_text)?;
+        Ok(models)
     }
 
     pub async fn chat(&self, model: &str, messages: Vec<ChatMessage>) -> Result<ChatResponse, Box<dyn Error>> {
@@ -83,7 +82,8 @@ impl OllamaProvider {
         }
 
         let response_text = response.text().await?;
-        let response: ChatResponse = serde_json::from_str(&response_text)?;
+        let mut response: ChatResponse = serde_json::from_str(&response_text)?;
+        response.done = true; // Single response is always done
         Ok(response)
     }
 
@@ -113,13 +113,38 @@ impl OllamaProvider {
             }).boxed();
         }
 
+        let mut last_response = None;
+
         response
             .bytes_stream()
-            .map(|result| {
-                result
+            .filter_map(move |result| {
+                let result = result
                     .map_err(|e| Box::new(e) as Box<dyn Error>)
-                    .and_then(|bytes| parse_stream_chunk(bytes))
+                    .and_then(|bytes| parse_stream_chunk(bytes));
+
+                match &result {
+                    Ok(response) => {
+                        if response.done {
+                            last_response = Some(response.clone());
+                            None
+                        } else {
+                            Some(result)
+                        }
+                    }
+                    Err(_) => Some(result),
+                }
             })
+            .chain(futures_util::stream::once(async move {
+                Ok(last_response.unwrap_or(ChatResponse {
+                    message: ChatMessage {
+                        role: "assistant".to_string(),
+                        content: String::new(),
+                    },
+                    done: true,
+                    model: String::new(),
+                    created_at: String::new(),
+                }))
+            }))
             .boxed()
     }
 }
