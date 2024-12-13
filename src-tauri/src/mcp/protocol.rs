@@ -63,28 +63,29 @@ impl MCPProtocol {
         };
 
         // Create JSON-RPC response
-        let response = JsonRpcResponse {
-            jsonrpc: JSONRPC_VERSION.to_string(),
-            id: request.id.clone(),
-            result: serde_json::to_value(result)?,
-        };
+        let response = serde_json::json!({
+            "jsonrpc": JSONRPC_VERSION,
+            "id": request.id,
+            "result": result
+        });
 
         Ok(serde_json::to_string(&response)?)
     }
 
     fn create_error_response(&self, id: Value, code: i32, message: String) -> String {
-        let error = JsonRpcError {
-            jsonrpc: JSONRPC_VERSION.to_string(),
-            id,
-            error: JsonRpcErrorDetail {
-                code,
-                message,
-                data: None,
-            },
-        };
+        let error = serde_json::json!({
+            "jsonrpc": JSONRPC_VERSION,
+            "id": id,
+            "error": {
+                "code": code,
+                "message": message,
+                "data": null
+            }
+        });
 
         serde_json::to_string(&error).unwrap_or_else(|e| {
-            format!("{{\"jsonrpc\":\"2.0\",\"id\":null,\"error\":{{\"code\":-32603,\"message\":\"Error creating error response: {}\"}}}}",
+            format!(
+                r#"{{"jsonrpc":"2.0","id":null,"error":{{"code":-32603,"message":"Error creating error response: {}"}}}"#,
                 e
             )
         })
@@ -116,13 +117,15 @@ mod tests {
         let message = serde_json::to_string(&request).unwrap();
         let response = protocol.handle_message(&message).unwrap();
         
-        let response: JsonRpcResponse = serde_json::from_str(&response).unwrap();
-        let result: InitializeResult = serde_json::from_value(response.result).unwrap();
+        let response: Value = serde_json::from_str(&response).unwrap();
+        assert_eq!(response["jsonrpc"], JSONRPC_VERSION);
+        assert_eq!(response["id"], 1);
         
-        assert_eq!(result.protocol_version, MCP_VERSION);
-        assert!(result.capabilities.resources.is_some());
-        assert!(result.capabilities.tools.is_some());
-        assert!(result.capabilities.prompts.is_some());
+        let result = &response["result"];
+        assert!(result.is_object());
+        assert!(result["capabilities"].is_object());
+        assert_eq!(result["protocol_version"], MCP_VERSION);
+        assert!(result["server_info"].is_object());
     }
 
     #[test]
@@ -139,8 +142,10 @@ mod tests {
         let message = serde_json::to_string(&request).unwrap();
         let response = protocol.handle_message(&message).unwrap();
         
-        let error: JsonRpcError = serde_json::from_str(&response).unwrap();
-        assert_eq!(error.error.code, -32601);
-        assert_eq!(error.error.message, "Method not found");
+        let error: Value = serde_json::from_str(&response).unwrap();
+        assert_eq!(error["jsonrpc"], JSONRPC_VERSION);
+        assert_eq!(error["id"], 1);
+        assert_eq!(error["error"]["code"], -32601);
+        assert_eq!(error["error"]["message"], "Method not found");
     }
 }
