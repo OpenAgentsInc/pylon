@@ -1,125 +1,104 @@
+use std::sync::Arc;
 use actix_web::{web, App, Error, HttpRequest, HttpResponse, HttpServer};
 use actix_ws::Message;
-use futures_util::StreamExt;
+use futures_util::{StreamExt as _, SinkExt};
 use log::{error, info};
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::time::{Duration, Instant};
-use std::sync::Arc;
+use tokio::sync::RwLock;
+use uuid::Uuid;
 
 use super::protocol::MCPProtocol;
 
-static NEXT_CLIENT_ID: AtomicUsize = AtomicUsize::new(1);
-
 pub struct MCPServer {
-    port: u16,
     protocol: Arc<MCPProtocol>,
 }
 
 impl MCPServer {
-    pub fn new(port: u16) -> Self {
+    pub fn new() -> Self {
         Self {
-            port,
             protocol: Arc::new(MCPProtocol::new()),
         }
     }
 
-    pub async fn run(&self) -> std::io::Result<()> {
-        info!("Starting MCP server on port {}", self.port);
+    pub async fn start(&self, host: &str, port: u16) -> std::io::Result<()> {
+        let protocol = self.protocol.clone();
 
-        let protocol = Arc::clone(&self.protocol);
-        let factory = move || {
-            let protocol = Arc::clone(&protocol);
+        info!("Starting MCP server on {}:{}", host, port);
+
+        HttpServer::new(move || {
             App::new()
-                .app_data(web::Data::new(protocol))
+                .app_data(web::Data::new(protocol.clone()))
                 .route("/mcp", web::get().to(handle_connection))
-        };
-
-        HttpServer::new(factory)
-            .workers(2)
-            .bind(("127.0.0.1", self.port))?
-            .run()
-            .await
+        })
+        .bind((host, port))?
+        .run()
+        .await
     }
 }
 
-async fn handle_connection(
+impl Default for MCPServer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+pub async fn handle_connection(
     req: HttpRequest,
     body: web::Payload,
     protocol: web::Data<Arc<MCPProtocol>>,
 ) -> Result<HttpResponse, Error> {
-    let client_id = NEXT_CLIENT_ID.fetch_add(1, Ordering::Relaxed);
-    info!("New client connection: {}", client_id);
-
     let (response, mut session, mut msg_stream) = actix_ws::handle(&req, body)?;
-    let protocol = Arc::clone(&protocol);
+
+    let client_id = Uuid::new_v4();
+    info!("New WebSocket connection: {}", client_id);
 
     // Spawn client handler
     actix_web::rt::spawn(async move {
-        let mut last_heartbeat = Instant::now();
-
         while let Some(Ok(msg)) = msg_stream.next().await {
             match msg {
                 Message::Text(text) => {
-                    info!("Client {}: Received text message: {}", client_id, text);
-                    
-                    // Handle message using protocol
-                    match protocol.handle_message(&text) {
+                    info!("Received message from {}: {}", client_id, text);
+
+                    match protocol.handle_message(&text).await {
                         Ok(response) => {
                             if let Err(e) = session.text(response).await {
-                                error!("Error sending response: {}", e);
+                                error!("Error sending response to {}: {}", client_id, e);
                                 break;
                             }
                         }
                         Err(e) => {
-                            error!("Error handling message: {}", e);
-                            // Send error response
-                            if let Err(e) = session.text(format!("{{\"jsonrpc\":\"2.0\",\"id\":null,\"error\":{{\"code\":-32603,\"message\":\"Internal error: {}\"}}}}",
-                                e
-                            )).await {
-                                error!("Error sending error response: {}", e);
+                            error!("Error handling message from {}: {}", client_id, e);
+                            if let Err(e) = session
+                                .text(format!("{{\"error\": \"{}\"}}", e.to_string()))
+                                .await
+                            {
+                                error!("Error sending error response to {}: {}", client_id, e);
                                 break;
                             }
                         }
                     }
                 }
-                Message::Binary(bin) => {
-                    info!("Client {}: Received binary message", client_id);
-                    
-                    if let Err(e) = session.binary(bin).await {
-                        error!("Error sending binary: {}", e);
-                        break;
-                    }
-                }
-                Message::Ping(bytes) => {
-                    last_heartbeat = Instant::now();
-                    if let Err(e) = session.pong(&bytes).await {
-                        error!("Error sending pong: {}", e);
-                        break;
-                    }
-                }
-                Message::Pong(_) => {
-                    last_heartbeat = Instant::now();
-                }
                 Message::Close(reason) => {
-                    info!("Client {} disconnected: {:?}", client_id, reason);
+                    info!(
+                        "Client {} disconnected: {:?}",
+                        client_id,
+                        reason.map(|r| r.to_string())
+                    );
                     break;
                 }
-                Message::Continuation(_) => {
-                    info!("Client {}: Received continuation frame", client_id);
+                Message::Ping(bytes) => {
+                    if let Err(e) = session.pong(&bytes).await {
+                        error!("Error sending pong to {}: {}", client_id, e);
+                        break;
+                    }
                 }
-                Message::Nop => (),
-            }
-
-            // Check heartbeat
-            if Instant::now().duration_since(last_heartbeat) > Duration::from_secs(10) {
-                error!("Client {} heartbeat missing, disconnecting!", client_id);
-                break;
+                _ => {}
             }
         }
 
-        // Send close message
-        let _ = session.close(None).await;
-        info!("Client {} connection closed", client_id);
+        // Clean up when client disconnects
+        if let Err(e) = session.close(None).await {
+            error!("Error closing session for {}: {}", client_id, e);
+        }
     });
 
     Ok(response)
