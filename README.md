@@ -10,3 +10,7 @@ Pylon node runners earn bitcoin processing requests to the OpenAgents network fr
 - Tauri
 - Rust
 - React/TypeScript
+
+## Status
+
+Pre-alpha; do not use
