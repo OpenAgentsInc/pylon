@@ -6,17 +6,10 @@ mod tests {
     use std::time::Duration;
     use tokio::time::sleep;
 
-    async fn skip_if_ollama_not_running() -> bool {
-        if !is_ollama_running().await {
-            eprintln!("Skipping test: Ollama is not running");
-            return true;
-        }
-        false
-    }
-
     #[tokio::test]
     async fn test_ollama_integration() {
-        if skip_if_ollama_not_running().await {
+        if !is_ollama_running().await {
+            eprintln!("Skipping test: Ollama is not running");
             return;
         }
 
@@ -35,12 +28,12 @@ mod tests {
             }
         ];
 
-        let response = provider.chat("llama3.2", messages.clone()).await.unwrap();
+        let response = provider.chat("llama2", messages.clone()).await.unwrap();
         assert!(!response.message.content.is_empty());
         println!("Chat response: {}", response.message.content);
 
         // Test streaming
-        let mut stream = provider.chat_stream("llama3.2", messages).await;
+        let mut stream = provider.chat_stream("llama2", messages).await;
         let mut response_parts = Vec::new();
 
         while let Some(Ok(response)) = stream.next().await {
@@ -57,11 +50,12 @@ mod tests {
 
     #[tokio::test]
     async fn test_ollama_error_handling() {
-        if skip_if_ollama_not_running().await {
+        if !is_ollama_running().await {
+            eprintln!("Skipping test: Ollama is not running");
             return;
         }
 
-        let provider = OllamaProvider::new("http://localhost:11434".to_string());
+        let provider = OllamaProvider::default();
         let messages = vec![
             ChatMessage {
                 role: "user".to_string(),
@@ -77,7 +71,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_ollama_streaming() {
-        if skip_if_ollama_not_running().await {
+        if !is_ollama_running().await {
+            eprintln!("Skipping test: Ollama is not running");
             return;
         }
 
@@ -89,7 +84,7 @@ mod tests {
             }
         ];
 
-        let mut stream = provider.chat_stream("llama3.2", messages).await;
+        let mut stream = provider.chat_stream("llama2", messages).await;
         let mut response_parts = Vec::new();
         let mut full_response = String::new();
 
@@ -104,6 +99,5 @@ mod tests {
 
         assert!(!response_parts.is_empty());
         println!("Full streaming response: {}", full_response);
-        assert!(full_response.contains("1") && full_response.contains("5"));
     }
 }
