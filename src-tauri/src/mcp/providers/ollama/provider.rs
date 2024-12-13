@@ -56,9 +56,18 @@ impl OllamaProvider {
         }
 
         let response_text = response.text().await?;
-        let mut response: ChatResponse = serde_json::from_str(&response_text)?;
-        response.done = true; // Single response is always done
-        Ok(response)
+        println!("Raw response: {}", response_text);
+        
+        let response: OllamaResponse = serde_json::from_str(&response_text)?;
+        Ok(ChatResponse {
+            message: ChatMessage {
+                role: "assistant".to_string(),
+                content: response.response,
+            },
+            done: true,
+            model: response.model,
+            created_at: response.created_at.unwrap_or_default(),
+        })
     }
 
     pub async fn chat_stream(&self, model: &str, messages: Vec<ChatMessage>) -> BoxStream<'static, Result<ChatResponse, DynError>> {
@@ -137,8 +146,18 @@ impl OllamaProvider {
 
 fn parse_stream_chunk(bytes: Bytes) -> Result<ChatResponse, DynError> {
     let response_text = String::from_utf8(bytes.to_vec())?;
-    let response: ChatResponse = serde_json::from_str(&response_text)?;
-    Ok(response)
+    println!("Raw stream chunk: {}", response_text);
+    
+    let response: OllamaResponse = serde_json::from_str(&response_text)?;
+    Ok(ChatResponse {
+        message: ChatMessage {
+            role: "assistant".to_string(),
+            content: response.response,
+        },
+        done: response.done,
+        model: response.model,
+        created_at: response.created_at.unwrap_or_default(),
+    })
 }
 
 impl Default for OllamaProvider {
