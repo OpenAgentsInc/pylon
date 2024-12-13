@@ -3,42 +3,22 @@ import styles from "./Card.module.scss"
 
 interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
   children?: React.ReactNode;
-  title?: string | any;
-  mode?: string | any;
+  title?: string | React.ReactNode;
+  mode?: 'left' | 'right';
 }
 
 const Card: React.FC<CardProps> = ({ children, mode, title, ...rest }) => {
-  let titleElement = (
-    <header className={styles.action}>
-      <div className={styles.left} aria-hidden="true"></div>
-      <h2 className={styles.title}>{title}</h2>
-      <div className={styles.right} aria-hidden="true"></div>
-    </header>
-  );
-
-  if (mode === 'left') {
-    titleElement = (
-      <header className={styles.action}>
-        <div className={styles.leftCorner} aria-hidden="true"></div>
-        <h2 className={styles.title}>{title}</h2>
-        <div className={styles.right} aria-hidden="true"></div>
-      </header>
-    );
-  }
-
-  if (mode === 'right') {
-    titleElement = (
-      <header className={styles.action}>
-        <div className={styles.left} aria-hidden="true"></div>
-        <h2 className={styles.title}>{title}</h2>
-        <div className={styles.rightCorner} aria-hidden="true"></div>
-      </header>
-    );
-  }
-
   return (
-    <article className={styles.card}>
-      {titleElement}
+    <article className={styles.card} {...rest}>
+      {title && (
+        <header className={styles.action}>
+          {mode === 'left' && <div className={styles.leftCorner} aria-hidden="true" />}
+          {!mode && <div className={styles.left} aria-hidden="true" />}
+          <h2 className={styles.title}>{title}</h2>
+          {!mode && <div className={styles.right} aria-hidden="true" />}
+          {mode === 'right' && <div className={styles.rightCorner} aria-hidden="true" />}
+        </header>
+      )}
       <section className={styles.children}>{children}</section>
     </article>
   );
