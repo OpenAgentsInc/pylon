@@ -1,6 +1,7 @@
 use super::*;
 use crate::utils::ollama::is_ollama_running;
 use crate::mcp::types::{JSONRPC_VERSION, MCP_VERSION};
+use serde_json::Value;
 
 #[tokio::test]
 async fn test_initialize_request() {
