@@ -64,8 +64,8 @@ mod tests {
             "params": {
                 "capabilities": {},
                 "clientInfo": {
-                    "name": "test",
-                    "version": "1.0"
+                    "name": "test-client",
+                    "version": "1.0.0"
                 },
                 "protocolVersion": MCP_VERSION
             }
@@ -146,8 +146,8 @@ mod tests {
             "params": {
                 "capabilities": {},
                 "clientInfo": {
-                    "name": "test1",
-                    "version": "1.0"
+                    "name": "test1-client",
+                    "version": "1.0.0"
                 },
                 "protocolVersion": MCP_VERSION
             }
@@ -160,8 +160,8 @@ mod tests {
             "params": {
                 "capabilities": {},
                 "clientInfo": {
-                    "name": "test2",
-                    "version": "1.0"
+                    "name": "test2-client",
+                    "version": "1.0.0"
                 },
                 "protocolVersion": MCP_VERSION
             }
