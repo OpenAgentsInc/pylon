@@ -44,10 +44,10 @@ mod tests {
         // Create test client with proper WebSocket connection
         let client = awc::Client::new()
             .ws(srv.url("/mcp"))
-            .insert_header(("upgrade", "websocket"))
-            .insert_header(("connection", "upgrade"))
-            .insert_header(("sec-websocket-key", "dGhlIHNhbXBsZSBub25jZQ=="))
-            .insert_header(("sec-websocket-version", "13"))
+            .set_header("upgrade", "websocket")
+            .set_header("connection", "upgrade")
+            .set_header("sec-websocket-key", "dGhlIHNhbXBsZSBub25jZQ==")
+            .set_header("sec-websocket-version", "13")
             .connect()
             .await;
 
@@ -82,19 +82,19 @@ mod tests {
         // Create two clients with proper WebSocket connections
         let client1 = awc::Client::new()
             .ws(url.clone())
-            .insert_header(("upgrade", "websocket"))
-            .insert_header(("connection", "upgrade"))
-            .insert_header(("sec-websocket-key", "dGhlIHNhbXBsZSBub25jZQ=="))
-            .insert_header(("sec-websocket-version", "13"))
+            .set_header("upgrade", "websocket")
+            .set_header("connection", "upgrade")
+            .set_header("sec-websocket-key", "dGhlIHNhbXBsZSBub25jZQ==")
+            .set_header("sec-websocket-version", "13")
             .connect()
             .await;
 
         let client2 = awc::Client::new()
             .ws(url)
-            .insert_header(("upgrade", "websocket"))
-            .insert_header(("connection", "upgrade"))
-            .insert_header(("sec-websocket-key", "SGVsbG8sIHdvcmxkIQ==")) // Different key for second client
-            .insert_header(("sec-websocket-version", "13"))
+            .set_header("upgrade", "websocket")
+            .set_header("connection", "upgrade")
+            .set_header("sec-websocket-key", "SGVsbG8sIHdvcmxkIQ==") // Different key for second client
+            .set_header("sec-websocket-version", "13")
             .connect()
             .await;
 
