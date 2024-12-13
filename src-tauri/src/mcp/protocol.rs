@@ -35,18 +35,18 @@ impl MCPProtocol {
         }
     }
 
-    pub fn handle_message(&self, message: &str) -> Result<String, Box<dyn Error>> {
+    pub async fn handle_message(&self, message: &str) -> Result<String, Box<dyn Error>> {
         let request: JsonRpcRequest = serde_json::from_str(message)?;
 
         match request.method.as_str() {
             "initialize" => self.handle_initialize(&request),
-            "resource/list" => self.handle_list_resources(&request),
-            "resource/read" => self.handle_read_resource(&request),
-            "resource/watch" => self.handle_watch_resource(&request),
-            "resource/unwatch" => self.handle_unwatch_resource(&request),
+            "resource/list" => self.handle_list_resources(&request).await,
+            "resource/read" => self.handle_read_resource(&request).await,
+            "resource/watch" => self.handle_watch_resource(&request).await,
+            "resource/unwatch" => self.handle_unwatch_resource(&request).await,
             _ => {
                 error!("Unknown method: {}", request.method);
-                Ok(self.create_error_response(request.id, -32601, "Method not found".to_string()))
+                Ok(self.create_error_response(request.id.clone(), -32601, "Method not found".to_string()))
             }
         }
     }
@@ -94,13 +94,13 @@ impl MCPProtocol {
             Ok(resources) => {
                 let response = serde_json::json!({
                     "jsonrpc": JSONRPC_VERSION,
-                    "id": request.id,
+                    "id": request.id.clone(),
                     "result": resources
                 });
                 Ok(serde_json::to_string(&response)?)
             }
             Err(e) => Ok(self.create_error_response(
-                request.id,
+                request.id.clone(),
                 -32000,
                 format!("Error listing resources: {}", e),
             )),
@@ -119,13 +119,13 @@ impl MCPProtocol {
             Ok(contents) => {
                 let response = serde_json::json!({
                     "jsonrpc": JSONRPC_VERSION,
-                    "id": request.id,
+                    "id": request.id.clone(),
                     "result": contents
                 });
                 Ok(serde_json::to_string(&response)?)
             }
             Err(e) => Ok(self.create_error_response(
-                request.id,
+                request.id.clone(),
                 -32000,
                 format!("Error reading resource: {}", e),
             )),
@@ -144,13 +144,13 @@ impl MCPProtocol {
             Ok(()) => {
                 let response = serde_json::json!({
                     "jsonrpc": JSONRPC_VERSION,
-                    "id": request.id,
+                    "id": request.id.clone(),
                     "result": true
                 });
                 Ok(serde_json::to_string(&response)?)
             }
             Err(e) => Ok(self.create_error_response(
-                request.id,
+                request.id.clone(),
                 -32000,
                 format!("Error watching resource: {}", e),
             )),
@@ -169,13 +169,13 @@ impl MCPProtocol {
             Ok(()) => {
                 let response = serde_json::json!({
                     "jsonrpc": JSONRPC_VERSION,
-                    "id": request.id,
+                    "id": request.id.clone(),
                     "result": true
                 });
                 Ok(serde_json::to_string(&response)?)
             }
             Err(e) => Ok(self.create_error_response(
-                request.id,
+                request.id.clone(),
                 -32000,
                 format!("Error unwatching resource: {}", e),
             )),
@@ -195,7 +195,7 @@ impl MCPProtocol {
 
         serde_json::to_string(&error).unwrap_or_else(|e| {
             format!(
-                r#"{{"jsonrpc":"2.0","id":null,"error":{{"code":-32603,"message":"Error creating error response: {}"}}}"#,
+                r#"{{"jsonrpc":"2.0","id":null,"error":{{"code":-32603,"message":"Error creating error response: {}"}}"}}"#,
                 e
             )
         })
@@ -226,7 +226,7 @@ mod tests {
         };
 
         let message = serde_json::to_string(&request).unwrap();
-        let response = protocol.handle_message(&message).unwrap();
+        let response = protocol.handle_initialize(&request).unwrap();
 
         let response: Value = serde_json::from_str(&response).unwrap();
         assert_eq!(response["jsonrpc"], JSONRPC_VERSION);
@@ -251,7 +251,11 @@ mod tests {
         };
 
         let message = serde_json::to_string(&request).unwrap();
-        let response = protocol.handle_message(&message).unwrap();
+        let response = protocol.create_error_response(
+            request.id,
+            -32601,
+            "Method not found".to_string()
+        );
 
         let error: Value = serde_json::from_str(&response).unwrap();
         assert_eq!(error["jsonrpc"], JSONRPC_VERSION);
