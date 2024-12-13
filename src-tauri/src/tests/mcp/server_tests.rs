@@ -18,9 +18,13 @@ mod tests {
                 .route("/mcp", web::get().to(handle_connection))
         ).await;
 
-        // Create test client
+        // Create test client with proper WebSocket headers
         let req = test::TestRequest::get()
             .uri("/mcp")
+            .insert_header(("upgrade", "websocket"))
+            .insert_header(("connection", "upgrade"))
+            .insert_header(("sec-websocket-key", "dGhlIHNhbXBsZSBub25jZQ=="))
+            .insert_header(("sec-websocket-version", "13"))
             .to_request();
 
         let resp = test::call_service(&app, req).await;
@@ -38,16 +42,16 @@ mod tests {
         ).await;
 
         // Start test server
-        let mut srv = actix_test::start(move || {
+        let srv = actix_test::start(move || {
             App::new()
                 .app_data(web::Data::new(MCPProtocol::new()))
                 .route("/mcp", web::get().to(handle_connection))
         });
 
-        // Create test client
+        // Create test client with proper WebSocket connection
         let mut client = awc::Client::new()
             .ws(srv.url("/mcp"))
-            .connect()
+            .connect_ws()
             .await
             .unwrap();
 
@@ -67,7 +71,7 @@ mod tests {
     #[actix_web::test]
     async fn test_multiple_clients() {
         // Create test server
-        let mut srv = actix_test::start(move || {
+        let srv = actix_test::start(move || {
             App::new()
                 .app_data(web::Data::new(MCPProtocol::new()))
                 .route("/mcp", web::get().to(handle_connection))
@@ -75,35 +79,37 @@ mod tests {
 
         let url = srv.url("/mcp");
 
-        // Create two clients
+        // Create two clients with proper WebSocket connections
         let mut client1 = awc::Client::new()
             .ws(url.clone())
-            .connect()
+            .connect_ws()
             .await
             .unwrap();
 
         let mut client2 = awc::Client::new()
             .ws(url)
-            .connect()
+            .connect_ws()
             .await
             .unwrap();
 
         // Send messages from both clients
-        let msg1 = "Hello from client 1";
-        let msg2 = "Hello from client 2";
+        let msg1 = r#"{"jsonrpc":"2.0","method":"initialize","params":{"capabilities":{},"clientInfo":{"name":"test1","version":"1.0"},"protocolVersion":"0.1"},"id":1}"#;
+        let msg2 = r#"{"jsonrpc":"2.0","method":"initialize","params":{"capabilities":{},"clientInfo":{"name":"test2","version":"1.0"},"protocolVersion":"0.1"},"id":2}"#;
 
         client1.1.send(ws::Message::Text(msg1.into())).await.unwrap();
         client2.1.send(ws::Message::Text(msg2.into())).await.unwrap();
 
         // Verify both clients receive responses
-        if let Some(Ok(ws::Frame::Text(_))) = client1.1.next().await {
-            // Response received by client 1
+        if let Some(Ok(ws::Frame::Text(bytes))) = client1.1.next().await {
+            let response = String::from_utf8(bytes.to_vec()).unwrap();
+            assert!(response.contains("\"jsonrpc\":\"2.0\"")); // Should be valid JSON-RPC response
         } else {
             panic!("Client 1 did not receive response");
         }
 
-        if let Some(Ok(ws::Frame::Text(_))) = client2.1.next().await {
-            // Response received by client 2
+        if let Some(Ok(ws::Frame::Text(bytes))) = client2.1.next().await {
+            let response = String::from_utf8(bytes.to_vec()).unwrap();
+            assert!(response.contains("\"jsonrpc\":\"2.0\"")); // Should be valid JSON-RPC response
         } else {
             panic!("Client 2 did not receive response");
         }
