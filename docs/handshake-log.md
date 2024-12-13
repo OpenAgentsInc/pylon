@@ -10,7 +10,7 @@ This log documents the implementation of the WebSocket handshake between Onyx (c
 **File:** `app/config/websocket.ts`
 ```typescript
 export const pylonConfig: WebSocketConfig = {
-  url: 'ws://localhost:8080',
+  url: 'ws://localhost:8080/mcp', // Updated to include /mcp endpoint
   maxReconnectAttempts: 5,
   reconnectInterval: 3000,
   reconnectBackoff: 'exponential',
@@ -21,10 +21,9 @@ export const pylonConfig: WebSocketConfig = {
 };
 ```
 
-Added a new configuration specifically for Pylon connection, using the port from server logs:
-```
-[2024-12-13T01:37:09Z INFO  pylon_lib::mcp::server] Starting MCP server on 127.0.0.1:8080
-```
+Added a new configuration specifically for Pylon connection, using:
+- Port 8080 from server logs: `[INFO  pylon_lib::mcp::server] Starting MCP server on 127.0.0.1:8080`
+- Path `/mcp` from server code: `.route("/mcp", web::get().to(handle_connection))`
 
 ### 2. Connection Status UI
 **File:** `app/components/PylonOverlay.tsx`
@@ -96,7 +95,7 @@ export const OnyxScreen = observer(function OnyxScreen({ visible = true }: OnyxS
 ### WebSocket Connection Flow
 1. OnyxScreen mounts
 2. PylonOverlay initializes with pylonConfig
-3. useWebSocket hook creates/reuses WebSocket connection
+3. useWebSocket hook creates/reuses WebSocket connection to ws://localhost:8080/mcp
 4. Connection status displayed in overlay
 5. Auto-reconnection handled by existing WebSocketService
 
@@ -138,26 +137,32 @@ export const OnyxScreen = observer(function OnyxScreen({ visible = true }: OnyxS
    - Verify reconnection
 
 ### Known Issues
-None currently identified.
+- ~~404 error when connecting~~ Fixed by adding `/mcp` to WebSocket URL
+- ErrorEvent reference error in error handling (to be fixed)
 
 ## Next Steps
 
-1. **Authentication**
+1. **Error Handling**
+   - Fix ErrorEvent reference error
+   - Improve error messages
+   - Add reconnection backoff
+
+2. **Authentication**
    - Implement proper API key handling
    - Add secure key storage
    - Add auth failure handling
 
-2. **Protocol Implementation**
+3. **Protocol Implementation**
    - Implement MCP message handling
    - Add capability negotiation
    - Add resource handling
 
-3. **UI Enhancements**
+4. **UI Enhancements**
    - Add connection details display
    - Add debug mode toggle
    - Add connection statistics
 
-4. **Testing**
+5. **Testing**
    - Add automated tests
    - Add connection failure scenarios
    - Add protocol compliance tests
