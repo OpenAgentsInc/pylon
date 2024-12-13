@@ -1,7 +1,7 @@
 use log::info;
 use std::thread;
 use std::sync::Arc;
-use crate::mcp::protocol::MCPProtocol;
+use crate::mcp::{MCPServer, MCPProtocol};
 
 mod commands;
 mod mcp;
@@ -12,15 +12,16 @@ fn main() {
     
     info!("Starting MCP server...");
     
-    // Create MCP protocol instance
-    let protocol = Arc::new(MCPProtocol::new());
-    let protocol_clone = protocol.clone();
+    // Create MCP server instance
+    let mcp_server = Arc::new(MCPServer::new());
+    let protocol = mcp_server.protocol.clone();
     
     // Start MCP server in a separate thread
+    let server_clone = mcp_server.clone();
     thread::spawn(move || {
         let system = actix_web::rt::System::new();
         system.block_on(async {
-            if let Err(e) = pylon_lib::start_mcp_server("127.0.0.1".to_string(), 8080).await {
+            if let Err(e) = server_clone.start("127.0.0.1", 8080).await {
                 log::error!("MCP server error: {}", e);
             }
         });
@@ -29,7 +30,7 @@ fn main() {
     // Run Tauri application
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
-        .manage(protocol_clone)
+        .manage(protocol)
         .invoke_handler(tauri::generate_handler![
             commands::get_connected_clients
         ])
