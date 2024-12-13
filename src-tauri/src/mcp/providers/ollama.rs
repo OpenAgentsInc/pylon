@@ -1,7 +1,8 @@
 use std::error::Error;
-use async_trait::async_trait;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
+use futures_util::Stream;
+use tokio_stream::StreamExt;
 use log::{error, info};
 
 use super::ResourceError;
@@ -18,13 +19,13 @@ pub struct ChatRequest {
     pub messages: Vec<ChatMessage>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChatResponse {
     pub message: ChatMessage,
     pub done: bool,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ModelInfo {
     pub name: String,
     pub modified_at: String,
@@ -73,7 +74,7 @@ impl OllamaProvider {
         Ok(response)
     }
 
-    pub async fn chat_stream(&self, model: &str, messages: Vec<ChatMessage>) -> impl futures::Stream<Item = Result<ChatResponse, Box<dyn Error>>> {
+    pub async fn chat_stream(&self, model: &str, messages: Vec<ChatMessage>) -> impl Stream<Item = Result<ChatResponse, Box<dyn Error>>> {
         let request = ChatRequest {
             model: model.to_string(),
             messages,
@@ -107,17 +108,51 @@ impl Default for OllamaProvider {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use wiremock::{MockServer, Mock, ResponseTemplate};
+    use wiremock::matchers::{method, path};
 
     #[tokio::test]
     async fn test_list_models() {
-        let provider = OllamaProvider::default();
+        let mock_server = MockServer::start().await;
+
+        Mock::given(method("GET"))
+            .and(path("/api/tags"))
+            .respond_with(ResponseTemplate::new(200)
+                .set_body_json(vec![
+                    ModelInfo {
+                        name: "llama3.2".to_string(),
+                        modified_at: "2024-02-20T12:00:00Z".to_string(),
+                        size: 1000,
+                    }
+                ]))
+            .mount(&mock_server)
+            .await;
+
+        let provider = OllamaProvider::new(mock_server.uri());
         let models = provider.list_models().await.unwrap();
-        assert!(!models.is_empty());
+        
+        assert_eq!(models.len(), 1);
+        assert_eq!(models[0].name, "llama3.2");
     }
 
     #[tokio::test]
     async fn test_chat() {
-        let provider = OllamaProvider::default();
+        let mock_server = MockServer::start().await;
+
+        Mock::given(method("POST"))
+            .and(path("/api/chat"))
+            .respond_with(ResponseTemplate::new(200)
+                .set_body_json(ChatResponse {
+                    message: ChatMessage {
+                        role: "assistant".to_string(),
+                        content: "The sky appears blue due to Rayleigh scattering.".to_string(),
+                    },
+                    done: true,
+                }))
+            .mount(&mock_server)
+            .await;
+
+        let provider = OllamaProvider::new(mock_server.uri());
         let messages = vec![
             ChatMessage {
                 role: "user".to_string(),
@@ -126,6 +161,7 @@ mod tests {
         ];
 
         let response = provider.chat("llama3.2", messages).await.unwrap();
-        assert!(!response.message.content.is_empty());
+        assert!(response.message.content.contains("sky"));
+        assert!(response.done);
     }
 }
