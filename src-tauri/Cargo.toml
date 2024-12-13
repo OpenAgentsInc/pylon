@@ -35,3 +35,4 @@ url = "2.5"
 [dev-dependencies]
 tempfile = "3.10"
 awc = "3.4"
+actix-test = "0.1.2"
