@@ -7,10 +7,12 @@ async fn main() {
     
     info!("Starting MCP server...");
     
-    // Start MCP server
-    if let Err(e) = pylon_lib::start_mcp_server("127.0.0.1".to_string(), 8080).await {
-        log::error!("MCP server error: {}", e);
-    }
+    // Start MCP server in a separate task
+    tokio::spawn(async {
+        if let Err(e) = pylon_lib::start_mcp_server("127.0.0.1".to_string(), 8080).await {
+            log::error!("MCP server error: {}", e);
+        }
+    });
 
     // Run Tauri application
     tauri::Builder::default()
