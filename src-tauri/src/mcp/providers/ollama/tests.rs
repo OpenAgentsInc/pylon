@@ -57,8 +57,11 @@ async fn test_chat_stream() {
     let mut full_response = String::new();
 
     while let Some(Ok(response)) = stream.next().await {
-        response_parts.push(response.message.content.clone());
-        full_response.push_str(&response.message.content);
+        let content = response.message.content.clone();
+        if !content.is_empty() {
+            response_parts.push(content.clone());
+            full_response.push_str(&content);
+        }
         if response.done {
             break;
         }
