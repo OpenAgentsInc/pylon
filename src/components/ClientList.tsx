@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
-import { invoke } from '@tauri-apps/api/tauri';
-import styles from './ClientList.module.scss';
+import React, { useEffect, useState } from "react"
+import { invoke } from "@tauri-apps/api/core"
+import styles from "./ClientList.module.scss"
 
 interface Client {
   id: string;
@@ -26,6 +26,7 @@ const ClientList: React.FC = () => {
     const fetchClients = async () => {
       try {
         const connectedClients = await invoke<Client[]>('get_connected_clients');
+        console.log('Connected clients:', connectedClients);
         setClients(connectedClients);
       } catch (error) {
         console.error('Error fetching clients:', error);
