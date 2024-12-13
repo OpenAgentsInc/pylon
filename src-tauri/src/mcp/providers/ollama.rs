@@ -6,7 +6,7 @@ use futures_util::stream::{self, BoxStream};
 use std::error::Error as StdError;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use pylon_lib::utils::ollama::is_ollama_running;
+use crate::utils::ollama::is_ollama_running;
 
 type DynError = Box<dyn StdError + Send + Sync + 'static>;
 
