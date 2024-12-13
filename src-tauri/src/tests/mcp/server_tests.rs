@@ -1,9 +1,9 @@
 use actix_web::{test, web, App};
 use awc::ws;
-use futures_util::{SinkExt, StreamExt};
+use futures_util::StreamExt;
 use std::sync::Arc;
 
-use crate::mcp::{MCPServer, MCPProtocol};
+use crate::mcp::MCPProtocol;
 use crate::mcp::server::handle_connection;
 
 #[actix_web::test]
@@ -29,18 +29,18 @@ async fn test_websocket_connection() {
 async fn test_websocket_echo() {
     // Create test server
     let protocol = Arc::new(MCPProtocol::new());
-    let server = test::init_service(
+    let app = test::init_service(
         App::new()
             .app_data(web::Data::new(protocol))
             .route("/mcp", web::get().to(handle_connection))
     ).await;
 
-    // Create test client
-    let srv = test::TestServer::new(server.into_service());
-    let url = srv.url("/mcp");
+    // Start test server
+    let server = test::start(app);
 
+    // Create test client
     let mut client = awc::Client::new()
-        .ws(url)
+        .ws(server.url("/mcp"))
         .connect()
         .await
         .unwrap();
@@ -62,15 +62,15 @@ async fn test_websocket_echo() {
 async fn test_multiple_clients() {
     // Create test server
     let protocol = Arc::new(MCPProtocol::new());
-    let server = test::init_service(
+    let app = test::init_service(
         App::new()
             .app_data(web::Data::new(protocol))
             .route("/mcp", web::get().to(handle_connection))
     ).await;
 
-    // Create test server instance
-    let srv = test::TestServer::new(server.into_service());
-    let url = srv.url("/mcp");
+    // Start test server
+    let server = test::start(app);
+    let url = server.url("/mcp");
 
     // Create two clients
     let mut client1 = awc::Client::new()
