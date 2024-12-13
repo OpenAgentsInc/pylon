@@ -1,5 +1,5 @@
 use crate::mcp::types::*;
-use crate::mcp::providers::{filesystem::FileSystemProvider, ollama::OllamaProvider, ResourceProvider};
+use crate::mcp::providers::{filesystem::FileSystemProvider, ollama::{OllamaProvider, ChatMessage}, ResourceProvider};
 use crate::mcp::clients::{ClientManager, ClientInfo};
 use log::{error, info};
 use serde_json::Value;
@@ -86,7 +86,10 @@ impl MCPProtocol {
                 let json_response = serde_json::json!({
                     "jsonrpc": JSONRPC_VERSION,
                     "id": request.id,
-                    "result": response
+                    "result": {
+                        "message": response.message,
+                        "done": response.done
+                    }
                 });
                 Ok(serde_json::to_string(&json_response)?)
             }
@@ -104,7 +107,9 @@ impl MCPProtocol {
                 let json_response = serde_json::json!({
                     "jsonrpc": JSONRPC_VERSION,
                     "id": request.id,
-                    "result": models
+                    "result": {
+                        "models": models
+                    }
                 });
                 Ok(serde_json::to_string(&json_response)?)
             }
