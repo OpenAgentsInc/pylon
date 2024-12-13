@@ -1,8 +1,7 @@
 use std::error::Error;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use futures_util::Stream;
-use tokio_stream::StreamExt;
+use futures_util::{Stream, StreamExt};
 use bytes::Bytes;
 use futures_util::stream::StreamExt as _;
 
@@ -86,7 +85,8 @@ impl OllamaProvider {
             .await
             .unwrap(); // TODO: Better error handling
 
-        reqwest::Body::wrap_stream(response.bytes_stream())
+        response
+            .bytes_stream()
             .map(|result| {
                 result
                     .map_err(|e| Box::new(e) as Box<dyn Error>)
@@ -147,7 +147,7 @@ mod tests {
         let mut response_parts = Vec::new();
         let mut full_response = String::new();
 
-        while let Some(Ok(response)) = stream.next().await {
+        while let Some(Ok(response)) = futures_util::StreamExt::next(&mut stream).await {
             response_parts.push(response.message.content.clone());
             full_response.push_str(&response.message.content);
             if response.done {
