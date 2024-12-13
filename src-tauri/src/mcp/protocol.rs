@@ -23,12 +23,8 @@ impl MCPProtocol {
                     list_changed: true,
                     subscribe: true,
                 }),
-                tools: Some(ToolsCapability {
-                    list_changed: true,
-                }),
-                prompts: Some(PromptsCapability {
-                    list_changed: true,
-                }),
+                tools: Some(ToolsCapability { list_changed: true }),
+                prompts: Some(PromptsCapability { list_changed: true }),
                 ..Default::default()
             },
         }
@@ -36,23 +32,22 @@ impl MCPProtocol {
 
     pub fn handle_message(&self, message: &str) -> Result<String, Box<dyn Error>> {
         let request: JsonRpcRequest = serde_json::from_str(message)?;
-        
+
         match request.method.as_str() {
             "initialize" => self.handle_initialize(&request),
             _ => {
                 error!("Unknown method: {}", request.method);
-                Ok(self.create_error_response(
-                    request.id,
-                    -32601,
-                    "Method not found".to_string(),
-                ))
+                Ok(self.create_error_response(request.id, -32601, "Method not found".to_string()))
             }
         }
     }
 
     fn handle_initialize(&self, request: &JsonRpcRequest) -> Result<String, Box<dyn Error>> {
         let params: InitializeParams = serde_json::from_value(request.params.clone())?;
-        info!("Received initialize request from client: {:?}", params.client_info);
+        info!(
+            "Received initialize request from client: {:?}",
+            params.client_info
+        );
 
         // Create initialize result
         let result = InitializeResult {
@@ -90,7 +85,7 @@ impl MCPProtocol {
 
         serde_json::to_string(&error).unwrap_or_else(|e| {
             format!(
-                r#"{{"jsonrpc":"2.0","id":null,"error":{{"code":-32603,"message":"Error creating error response: {}"}}}"#,
+                r#"{{"jsonrpc":"2.0","id":null,"error":{{"code":-32603,"message":"Error creating error response: {}"}}"#,
                 e
             )
         })
@@ -104,7 +99,7 @@ mod tests {
     #[test]
     fn test_initialize_request() {
         let protocol = MCPProtocol::new();
-        
+
         let request = JsonRpcRequest {
             jsonrpc: JSONRPC_VERSION.to_string(),
             id: serde_json::Value::Number(serde_json::Number::from(1)),
@@ -116,16 +111,17 @@ mod tests {
                     version: "1.0.0".to_string(),
                 },
                 protocol_version: MCP_VERSION.to_string(),
-            }).unwrap(),
+            })
+            .unwrap(),
         };
 
         let message = serde_json::to_string(&request).unwrap();
         let response = protocol.handle_message(&message).unwrap();
-        
+
         let response: Value = serde_json::from_str(&response).unwrap();
         assert_eq!(response["jsonrpc"], JSONRPC_VERSION);
         assert_eq!(response["id"], 1);
-        
+
         let result = &response["result"];
         assert!(result.is_object());
         assert!(result["capabilities"].is_object());
@@ -136,7 +132,7 @@ mod tests {
     #[test]
     fn test_unknown_method() {
         let protocol = MCPProtocol::new();
-        
+
         let request = JsonRpcRequest {
             jsonrpc: JSONRPC_VERSION.to_string(),
             id: serde_json::Value::Number(serde_json::Number::from(1)),
@@ -146,7 +142,7 @@ mod tests {
 
         let message = serde_json::to_string(&request).unwrap();
         let response = protocol.handle_message(&message).unwrap();
-        
+
         let error: Value = serde_json::from_str(&response).unwrap();
         assert_eq!(error["jsonrpc"], JSONRPC_VERSION);
         assert_eq!(error["id"], 1);
