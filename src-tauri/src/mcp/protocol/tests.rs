@@ -46,8 +46,6 @@ async fn test_initialize_request() {
 
 #[test]
 fn test_unknown_method() {
-    let protocol = MCPProtocol::new();
-
     let request = JsonRpcRequest {
         jsonrpc: JSONRPC_VERSION.to_string(),
         id: serde_json::Value::Number(serde_json::Number::from(1)),
