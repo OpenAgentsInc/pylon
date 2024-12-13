@@ -1,5 +1,18 @@
 # Pylon Test Plan
 
+## Currently passing tests
+
+test mcp::capabilities::tests::test_capability_negotiation_with_experimental ... ok
+test mcp::capabilities::tests::test_capability_negotiation_with_roots ... ok
+test mcp::protocol::tests::test_unknown_method ... ok
+test mcp::protocol::tests::test_initialize_request ... ok
+test mcp::capabilities::tests::test_capability_update ... ok
+test mcp::capabilities::tests::test_client_registration ... ok
+test mcp::capabilities::tests::test_client_removal ... ok
+test tests::mcp::server_tests::tests::test_websocket_connection ... ok
+test tests::mcp::server_tests::tests::test_websocket_echo ... ok
+test tests::mcp::server_tests::tests::test_multiple_clients ... ok
+
 ## Test Structure
 
 ```
