@@ -56,7 +56,7 @@ pub async fn handle_connection(
                 Message::Text(text) => {
                     info!("Received message from {}: {}", client_id, text);
 
-                    match protocol.handle_message(&text) {
+                    match protocol.handle_message(&text).await {
                         Ok(response) => {
                             if let Err(e) = session.text(response).await {
                                 error!("Error sending response to {}: {}", client_id, e);
