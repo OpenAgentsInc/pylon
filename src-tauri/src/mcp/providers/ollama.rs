@@ -1,9 +1,9 @@
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use futures_util::{Stream, StreamExt};
+use futures_util::StreamExt;
 use bytes::Bytes;
-use std::pin::Pin;
 use futures_util::stream::{self, BoxStream};
+use std::error::Error as StdError;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChatMessage {
@@ -54,7 +54,7 @@ impl OllamaProvider {
         }
     }
 
-    pub async fn list_models(&self) -> Result<Vec<ModelInfo>, Box<dyn std::error::Error>> {
+    pub async fn list_models(&self) -> Result<Vec<ModelInfo>, Box<dyn StdError>> {
         let response = self.client
             .get(format!("{}/api/tags", self.endpoint))
             .send()
@@ -70,7 +70,7 @@ impl OllamaProvider {
         Ok(models_response.models)
     }
 
-    pub async fn chat(&self, model: &str, messages: Vec<ChatMessage>) -> Result<ChatResponse, Box<dyn std::error::Error>> {
+    pub async fn chat(&self, model: &str, messages: Vec<ChatMessage>) -> Result<ChatResponse, Box<dyn StdError>> {
         let request = ChatRequest {
             model: model.to_string(),
             messages,
@@ -93,7 +93,7 @@ impl OllamaProvider {
         Ok(response)
     }
 
-    pub async fn chat_stream(&self, model: &str, messages: Vec<ChatMessage>) -> BoxStream<'static, Result<ChatResponse, Box<dyn std::error::Error>>> {
+    pub async fn chat_stream(&self, model: &str, messages: Vec<ChatMessage>) -> BoxStream<'static, Result<ChatResponse, Box<dyn StdError>>> {
         let request = ChatRequest {
             model: model.to_string(),
             messages,
@@ -107,7 +107,7 @@ impl OllamaProvider {
                 Ok(r) => r,
                 Err(e) => {
                     return stream::once(async move { 
-                        Err(Box::new(e) as Box<dyn std::error::Error>) 
+                        Err(Box::new(e) as Box<dyn StdError>) 
                     }).boxed();
                 }
             };
@@ -119,28 +119,32 @@ impl OllamaProvider {
             }).boxed();
         }
 
-        let mut last_response = None;
-
-        response
+        let stream = response
             .bytes_stream()
-            .map(move |result| {
-                result
-                    .map_err(|e| Box::new(e) as Box<dyn std::error::Error>)
-                    .and_then(|bytes| parse_stream_chunk(bytes))
-            })
-            .filter_map(move |result| {
-                match &result {
-                    Ok(response) => {
-                        if response.done {
-                            last_response = Some(response.clone());
-                            None
-                        } else {
-                            Some(result)
-                        }
-                    }
-                    Err(_) => Some(result),
+            .map(|result| -> Result<ChatResponse, Box<dyn StdError>> {
+                match result {
+                    Ok(bytes) => parse_stream_chunk(bytes),
+                    Err(e) => Err(Box::new(e) as Box<dyn StdError>),
                 }
             })
+            .boxed();
+
+        let mut last_response = None;
+        let filtered = stream.filter_map(move |result| async move {
+            match &result {
+                Ok(response) => {
+                    if response.done {
+                        last_response = Some(response.clone());
+                        None
+                    } else {
+                        Some(result)
+                    }
+                }
+                Err(_) => Some(result),
+            }
+        });
+
+        filtered
             .chain(stream::once(async move {
                 Ok(last_response.unwrap_or(ChatResponse {
                     message: ChatMessage {
@@ -156,7 +160,7 @@ impl OllamaProvider {
     }
 }
 
-fn parse_stream_chunk(bytes: Bytes) -> Result<ChatResponse, Box<dyn std::error::Error>> {
+fn parse_stream_chunk(bytes: Bytes) -> Result<ChatResponse, Box<dyn StdError>> {
     let response_text = String::from_utf8(bytes.to_vec())?;
     let response: ChatResponse = serde_json::from_str(&response_text)?;
     Ok(response)
