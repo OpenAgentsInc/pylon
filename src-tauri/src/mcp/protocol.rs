@@ -195,7 +195,7 @@ impl MCPProtocol {
 
         serde_json::to_string(&error).unwrap_or_else(|e| {
             format!(
-                r#"{{"jsonrpc":"2.0","id":null,"error":{{"code":-32603,"message":"Error creating error response: {}"}}"}}"#,
+                r#"{{"jsonrpc":"2.0","id":null,"error":{{"code":-32603,"message":"Error creating error response: {}"}}}}"#,
                 e
             )
         })
@@ -225,7 +225,6 @@ mod tests {
             .unwrap(),
         };
 
-        let message = serde_json::to_string(&request).unwrap();
         let response = protocol.handle_initialize(&request).unwrap();
 
         let response: Value = serde_json::from_str(&response).unwrap();
@@ -250,7 +249,6 @@ mod tests {
             params: serde_json::Value::Null,
         };
 
-        let message = serde_json::to_string(&request).unwrap();
         let response = protocol.create_error_response(
             request.id,
             -32601,
