@@ -4,6 +4,8 @@ use futures_util::StreamExt;
 use bytes::Bytes;
 use futures_util::stream::{self, BoxStream};
 use std::error::Error as StdError;
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
 type DynError = Box<dyn StdError + Send + Sync + 'static>;
 
@@ -121,6 +123,9 @@ impl OllamaProvider {
             }).boxed();
         }
 
+        let last_response = Arc::new(Mutex::new(None));
+        let last_response_clone = last_response.clone();
+
         let stream = response
             .bytes_stream()
             .map(|result| -> Result<ChatResponse, DynError> {
@@ -131,14 +136,14 @@ impl OllamaProvider {
             })
             .boxed();
 
-        let mut last_response = None;
         let filtered = stream.filter_map(move |result| {
-            let mut last = last_response.clone();
+            let last_response = last_response.clone();
             async move {
                 match result {
                     Ok(response) => {
                         if response.done {
-                            last = Some(response.clone());
+                            let mut guard = last_response.lock().await;
+                            *guard = Some(response.clone());
                             None
                         } else {
                             Some(Ok(response))
@@ -151,7 +156,8 @@ impl OllamaProvider {
 
         filtered
             .chain(stream::once(async move {
-                Ok(last_response.unwrap_or(ChatResponse {
+                let guard = last_response_clone.lock().await;
+                Ok(guard.clone().unwrap_or(ChatResponse {
                     message: ChatMessage {
                         role: "assistant".to_string(),
                         content: String::new(),
