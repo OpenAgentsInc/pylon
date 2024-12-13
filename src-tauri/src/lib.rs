@@ -1,14 +1,11 @@
-// Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-#[tauri::command]
-fn greet(name: &str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", name)
-}
+use std::sync::Arc;
 
-#[cfg_attr(mobile, tauri::mobile_entry_point)]
-pub fn run() {
-    tauri::Builder::default()
-        .plugin(tauri_plugin_shell::init())
-        .invoke_handler(tauri::generate_handler![greet])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+pub mod mcp;
+pub mod tests;
+
+pub async fn start_mcp_server(host: String, port: u16) -> std::io::Result<()> {
+    let mcp_server = Arc::new(mcp::MCPServer::new());
+    
+    // Run the server directly instead of spawning
+    mcp_server.start(&host, port).await
 }

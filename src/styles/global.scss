@@ -1,0 +1,67 @@
+html,
+body {
+  --color-black-100: rgba(0, 0, 0, 1);
+  --color-black-100-1: rgba(0, 0, 0, 0.1);
+  --color-black-100-2: rgba(0, 0, 0, 0.2);
+  --color-black-100-4: rgba(0, 0, 0, 0.4);
+  --color-white: rgba(255, 255, 255, 1);
+  --color-white-1: rgba(255, 255, 255, 0.1);
+  --color-white-2: rgba(255, 255, 255, 0.2);
+  --color-white-4: rgba(255, 255, 255, 0.4);
+  --color-gray-90: rgba(38, 38, 38, 1);
+  --color-gray-80: rgba(57, 57, 57, 1);
+  --color-gray-70-3: rgba(82, 82, 82, 0.3);
+  --color-gold-30: rgba(241, 194, 27, 1);
+  --color-green-60: rgba(25, 128, 56, 1);
+  --color-green-60-3: rgba(25, 128, 56, 0.3);
+  --color-red-60: rgba(218, 30, 40, 1);
+  --color-red-60-3: rgba(218, 30, 40, 0.3);
+  --color-daybreak-10: rgba(239, 99, 0, 1);
+  --color-daybreak-10-5: rgba(239, 99, 0, 0.5);
+
+  /* Force dark theme variables */
+  --theme-overlay: var(--color-white-4);
+  --theme-background: var(--color-black-100);
+  --theme-border: var(--color-gray-90);
+  --theme-border-box: var(--color-gray-80);
+  --theme-border-subdued: var(--color-gray-70-3);
+  --theme-error: var(--color-red-60);
+  --theme-error-subdued: var(--color-red-60-3);
+  --theme-primary: var(--color-gold-30);
+  --theme-success: var(--color-green-60);
+  --theme-success-subdued: var(--color-green-60-3);
+  --theme-text: var(--color-white);
+  --theme-button: var(--color-white);
+  --theme-button-text: var(--color-black-100);
+  --theme-button-foreground: var(--color-gray-90);
+  --theme-button-background: var(--color-gray-80);
+  --theme-focused-foreground: var(--color-daybreak-10);
+  --theme-focused-foreground-subdued: var(--color-daybreak-10-5);
+
+  --font-family-mono: 'JetBrains Mono', Consolas, monaco, monospace;
+  --theme-line-height-base: 1.25;
+
+  background: var(--theme-background);
+  color: var(--theme-text);
+  font-family: var(--font-family-mono);
+  line-height: calc(var(--theme-line-height-base) * 1rem);
+  font-size: 16px;
+  font-optical-sizing: auto;
+  font-weight: 400;
+
+  /* Add scrollbar styling */
+  &::-webkit-scrollbar {
+    background: transparent;
+    height: 20px;
+    width: 1ch;
+  }
+  &::-webkit-scrollbar-track {
+    background: var(--theme-background);
+  }
+  &::-webkit-scrollbar-thumb {
+    background: var(--theme-border);
+  }
+  &::-webkit-scrollbar-thumb:hover {
+    background: var(--theme-border);
+  }
+}

@@ -1,0 +1,97 @@
+.clientList {
+  padding: 1rem;
+  color: #fff;
+
+  .title {
+    margin-bottom: 1.5rem;
+    font-size: 1.5rem;
+    font-weight: 600;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(500px, 1fr));
+    gap: 1rem;
+  }
+
+  .noClients {
+    text-align: center;
+    color: #666;
+    font-style: italic;
+  }
+
+  .client {
+    .header {
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+
+      .name {
+        font-size: 1.2rem;
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+
+        .version {
+          color: #666;
+          font-size: 0.9rem;
+          margin-left: 0.5rem;
+        }
+      }
+
+      .id {
+        font-family: monospace;
+        color: #666;
+        font-size: 0.8rem;
+      }
+    }
+
+    .details {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+
+      .time {
+        color: #888;
+        font-size: 0.9rem;
+      }
+
+      .capabilities {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        margin: 0.5rem 0;
+      }
+
+      .capability {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 0.9rem;
+
+        .label {
+          color: #888;
+        }
+
+        .value {
+          color: #fff;
+        }
+      }
+
+      .lastMessage {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+        font-size: 0.9rem;
+
+        .label {
+          color: #888;
+        }
+
+        .value {
+          color: #fff;
+          word-break: break-all;
+        }
+      }
+    }
+  }
+}
