@@ -1,10 +1,8 @@
 use std::sync::Arc;
 use actix_web::{web, App, Error, HttpRequest, HttpResponse, HttpServer};
 use actix_ws::Message;
-use futures_util::{StreamExt as _, SinkExt};
+use futures_util::StreamExt as _;
 use log::{error, info};
-use tokio::sync::RwLock;
-use uuid::Uuid;
 
 use super::protocol::MCPProtocol;
 
@@ -48,7 +46,7 @@ pub async fn handle_connection(
 ) -> Result<HttpResponse, Error> {
     let (response, mut session, mut msg_stream) = actix_ws::handle(&req, body)?;
 
-    let client_id = Uuid::new_v4();
+    let client_id = uuid::Uuid::new_v4();
     info!("New WebSocket connection: {}", client_id);
 
     // Spawn client handler
@@ -58,7 +56,7 @@ pub async fn handle_connection(
                 Message::Text(text) => {
                     info!("Received message from {}: {}", client_id, text);
 
-                    match protocol.handle_message(&text).await {
+                    match protocol.handle_message(&text) {
                         Ok(response) => {
                             if let Err(e) = session.text(response).await {
                                 error!("Error sending response to {}: {}", client_id, e);
@@ -81,7 +79,7 @@ pub async fn handle_connection(
                     info!(
                         "Client {} disconnected: {:?}",
                         client_id,
-                        reason.map(|r| r.to_string())
+                        reason
                     );
                     break;
                 }
