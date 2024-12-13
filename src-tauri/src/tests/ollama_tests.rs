@@ -1,12 +1,25 @@
 #[cfg(test)]
 mod tests {
     use crate::mcp::providers::ollama::{OllamaProvider, ChatMessage};
+    use crate::utils::ollama::is_ollama_running;
     use futures_util::StreamExt;
     use std::time::Duration;
     use tokio::time::sleep;
 
+    async fn skip_if_ollama_not_running() -> bool {
+        if !is_ollama_running().await {
+            eprintln!("Skipping test: Ollama is not running");
+            return true;
+        }
+        false
+    }
+
     #[tokio::test]
     async fn test_ollama_integration() {
+        if skip_if_ollama_not_running().await {
+            return;
+        }
+
         let provider = OllamaProvider::default();
 
         // Test list_models
@@ -44,6 +57,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_ollama_error_handling() {
+        if skip_if_ollama_not_running().await {
+            return;
+        }
+
         let provider = OllamaProvider::new("http://localhost:11434".to_string());
         let messages = vec![
             ChatMessage {
@@ -55,10 +72,15 @@ mod tests {
         // Test with non-existent model
         let result = provider.chat("non-existent-model", messages).await;
         assert!(result.is_err());
+        println!("Expected error: {:?}", result.err());
     }
 
     #[tokio::test]
     async fn test_ollama_streaming() {
+        if skip_if_ollama_not_running().await {
+            return;
+        }
+
         let provider = OllamaProvider::default();
         let messages = vec![
             ChatMessage {
