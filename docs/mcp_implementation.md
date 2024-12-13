@@ -1,12 +1,12 @@
 # MCP (Model Control Protocol) Implementation
 
 ## Overview
-The MCP implementation in Pylon provides a client-server architecture for managing model interactions. The implementation is split across several key files in the `src-tauri/src/mcp/` directory.
+The MCP implementation in Pylon provides a client-server architecture for managing model interactions through WebSocket connections. The implementation follows a modular design with clear separation of concerns across multiple components.
 
 ## File Structure
 
 ### mod.rs
-The main module file that exports public interfaces and types. It serves as the entry point for the MCP implementation.
+The main module file that exports public interfaces and types. It serves as the entry point for the MCP implementation and re-exports the most commonly used types and traits.
 
 ### clients.rs
 Contains the active implementation of client management using async/await patterns with Tokio. This is the current production code that handles:
@@ -28,19 +28,50 @@ The capabilities system was reimplemented in `clients.rs` to:
 4. Use string-based IDs instead of UUIDs for better interop
 
 ### protocol.rs
-Defines the MCP protocol specifics including message formats and protocol versions.
+Implements the core MCP protocol functionality:
+- Message handling
+- JSON-RPC request/response processing
+- Client initialization
+- Resource operations (list, read, watch, unwatch)
+- Error handling and response formatting
 
 ### server.rs
-Implements the MCP server functionality that handles client connections and message routing.
+Implements the WebSocket server using Actix-Web:
+- WebSocket connection handling
+- Client message routing
+- Connection lifecycle management
+- Error handling and logging
+- Ping/pong handling for connection health
 
 ### types.rs
-Contains shared type definitions used across the MCP implementation.
+Defines the complete type system for the MCP implementation:
+- Protocol types (Implementation, ClientCapabilities, ServerCapabilities)
+- Resource types (Resource, ResourceContents)
+- JSON-RPC message types
+- Role and content types
+- Protocol constants
 
 ### providers/
-Directory containing various provider implementations for different resource types.
+Directory containing resource provider implementations:
 
-## Client Capabilities System
+#### providers/mod.rs
+Defines the core provider traits and types:
+- ResourceProvider trait for implementing providers
+- ResourceError enum for error handling
+- ResourcePath struct for path management
 
+#### providers/filesystem.rs
+Implements filesystem access provider:
+- File and directory listing
+- File content reading
+- File system watching
+- Path validation and security
+- MIME type detection
+- URI generation
+
+## Key Components
+
+### Client Capabilities System
 The client capabilities system is implemented in `clients.rs` with three main components:
 
 1. `ClientCapabilities`: Defines what features a client supports
@@ -58,6 +89,47 @@ The client capabilities system is implemented in `clients.rs` with three main co
    - connection timestamp
    - last message
 
+### Resource Provider System
+The resource provider system allows extensible access to different types of resources:
+
+1. `ResourceProvider` trait defines the interface:
+   - list: List resources at a path
+   - read: Read resource contents
+   - watch: Watch for resource changes
+   - unwatch: Stop watching resources
+
+2. `FileSystemProvider` implementation:
+   - Secure file system access
+   - Path validation
+   - File watching
+   - MIME type detection
+
+### WebSocket Server
+The WebSocket server implementation in `server.rs`:
+- Handles client connections
+- Routes messages to protocol handler
+- Manages connection lifecycle
+- Provides error handling
+- Implements ping/pong for connection health
+
+## Protocol Features
+
+1. Client Initialization
+   - Capability negotiation
+   - Version checking
+   - Client registration
+
+2. Resource Operations
+   - List resources
+   - Read resource contents
+   - Watch for changes
+   - Unwatch resources
+
+3. Error Handling
+   - Structured error responses
+   - Error categorization
+   - Client-friendly error messages
+
 ## Migration from Old Implementation
 
 The original implementation in `capabilities.rs` was replaced because:
@@ -67,3 +139,18 @@ The original implementation in `capabilities.rs` was replaced because:
 4. The capability negotiation was overly complex for actual usage patterns
 
 The new implementation in `clients.rs` provides a more streamlined, async-first approach that better matches the actual requirements of the application.
+
+## Future Improvements
+
+1. Binary File Handling
+   - The FileSystemProvider currently treats all files as text
+   - Need to implement proper binary file handling
+
+2. Event Handling
+   - File system events are currently just logged
+   - Need to implement proper event propagation to clients
+
+3. Resource Provider Extensions
+   - Add more resource provider implementations
+   - Support for remote resources
+   - Database resource provider
