@@ -41,7 +41,7 @@ pub(crate) struct ModelsResponse {
 #[derive(Debug, Deserialize)]
 pub(crate) struct OllamaResponse {
     pub model: String,
-    pub response: String,
+    pub message: ChatMessage,
     pub done: bool,
     pub created_at: Option<String>,
 }
