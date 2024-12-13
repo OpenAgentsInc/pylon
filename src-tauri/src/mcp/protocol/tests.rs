@@ -1,5 +1,5 @@
 use super::*;
-use crate::utils::ollama::is_ollama_running;
+use pylon_lib::utils::ollama::is_ollama_running;
 use crate::mcp::types::{JSONRPC_VERSION, MCP_VERSION};
 use serde_json::Value;
 
