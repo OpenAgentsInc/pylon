@@ -12,9 +12,12 @@ pub struct ClientInfo {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ClientCapabilities {
-    pub experimental: HashMap<String, serde_json::Value>,
-    pub roots: RootsCapability,
-    pub sampling: HashMap<String, serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub experimental: Option<HashMap<String, HashMap<String, serde_json::Value>>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub roots: Option<RootsCapability>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sampling: Option<HashMap<String, serde_json::Value>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -70,6 +73,16 @@ impl ClientManager {
     }
 }
 
+impl Default for ClientCapabilities {
+    fn default() -> Self {
+        Self {
+            experimental: None,
+            roots: None,
+            sampling: None,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -84,9 +97,9 @@ mod tests {
             version: "1.0".to_string(),
         };
         let capabilities = ClientCapabilities {
-            experimental: HashMap::new(),
-            roots: RootsCapability { list_changed: true },
-            sampling: HashMap::new(),
+            experimental: None,
+            roots: Some(RootsCapability { list_changed: true }),
+            sampling: None,
         };
         manager.add_client("test-id".to_string(), info.clone(), capabilities).await;
 
