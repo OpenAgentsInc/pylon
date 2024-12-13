@@ -39,32 +39,27 @@ impl OllamaProvider {
     }
 
     pub async fn chat(&self, model: &str, messages: Vec<ChatMessage>) -> Result<ChatResponse, DynError> {
-        let request = ChatRequest {
-            model: model.to_string(),
-            messages,
-        };
+        let mut stream = self.chat_stream(model, messages).await;
+        let mut final_content = String::new();
+        let mut final_response = None;
 
-        let response = self.client
-            .post(format!("{}/api/chat", self.endpoint))
-            .json(&request)
-            .send()
-            .await?;
-
-        if !response.status().is_success() {
-            let error_text = response.text().await?;
-            return Err(format!("Chat failed: {}", error_text).into());
+        while let Some(Ok(response)) = stream.next().await {
+            final_content.push_str(&response.message.content);
+            if response.done {
+                final_response = Some(ChatResponse {
+                    message: ChatMessage {
+                        role: "assistant".to_string(),
+                        content: final_content.clone(),
+                    },
+                    done: true,
+                    model: response.model,
+                    created_at: response.created_at,
+                });
+                break;
+            }
         }
 
-        let response_text = response.text().await?;
-        println!("Raw response: {}", response_text);
-        
-        let response: OllamaResponse = serde_json::from_str(&response_text)?;
-        Ok(ChatResponse {
-            message: response.message,
-            done: response.done,
-            model: response.model,
-            created_at: response.created_at.unwrap_or_default(),
-        })
+        final_response.ok_or_else(|| "No complete response received".into())
     }
 
     pub async fn chat_stream(&self, model: &str, messages: Vec<ChatMessage>) -> BoxStream<'static, Result<ChatResponse, DynError>> {
@@ -93,9 +88,6 @@ impl OllamaProvider {
             }).boxed();
         }
 
-        let last_response = Arc::new(Mutex::new(None));
-        let last_response_clone = last_response.clone();
-
         let stream = response
             .bytes_stream()
             .map(|result| -> Result<ChatResponse, DynError> {
@@ -106,38 +98,7 @@ impl OllamaProvider {
             })
             .boxed();
 
-        let filtered = stream.filter_map(move |result| {
-            let last_response = last_response.clone();
-            async move {
-                match result {
-                    Ok(response) => {
-                        if response.done {
-                            let mut guard = last_response.lock().await;
-                            *guard = Some(response.clone());
-                            None
-                        } else {
-                            Some(Ok(response))
-                        }
-                    }
-                    Err(e) => Some(Err(e)),
-                }
-            }
-        });
-
-        filtered
-            .chain(stream::once(async move {
-                let guard = last_response_clone.lock().await;
-                Ok(guard.clone().unwrap_or(ChatResponse {
-                    message: ChatMessage {
-                        role: "assistant".to_string(),
-                        content: String::new(),
-                    },
-                    done: true,
-                    model: String::new(),
-                    created_at: String::new(),
-                }))
-            }))
-            .boxed()
+        stream.boxed()
     }
 }
 
