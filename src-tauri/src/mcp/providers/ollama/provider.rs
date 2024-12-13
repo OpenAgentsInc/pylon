@@ -60,11 +60,8 @@ impl OllamaProvider {
         
         let response: OllamaResponse = serde_json::from_str(&response_text)?;
         Ok(ChatResponse {
-            message: ChatMessage {
-                role: "assistant".to_string(),
-                content: response.response,
-            },
-            done: true,
+            message: response.message,
+            done: response.done,
             model: response.model,
             created_at: response.created_at.unwrap_or_default(),
         })
@@ -150,10 +147,7 @@ fn parse_stream_chunk(bytes: Bytes) -> Result<ChatResponse, DynError> {
     
     let response: OllamaResponse = serde_json::from_str(&response_text)?;
     Ok(ChatResponse {
-        message: ChatMessage {
-            role: "assistant".to_string(),
-            content: response.response,
-        },
+        message: response.message,
         done: response.done,
         model: response.model,
         created_at: response.created_at.unwrap_or_default(),
