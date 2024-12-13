@@ -31,13 +31,5 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ]
-  },
-  "tauri": {
-    "allowlist": {
-      "all": false
-    },
-    "commands": [
-      "get_connected_clients"
-    ]
   }
 }
