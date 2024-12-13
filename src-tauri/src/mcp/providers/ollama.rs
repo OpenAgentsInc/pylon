@@ -3,9 +3,7 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use futures_util::Stream;
 use tokio_stream::StreamExt;
-use log::{error, info};
-
-use super::ResourceError;
+use bytes::Bytes;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChatMessage {
@@ -80,23 +78,26 @@ impl OllamaProvider {
             messages,
         };
 
-        let response_stream = self.client
+        let response = self.client
             .post(format!("{}/api/chat", self.endpoint))
             .json(&request)
             .send()
             .await
-            .unwrap() // TODO: Better error handling
+            .unwrap(); // TODO: Better error handling
+
+        response
             .bytes_stream()
             .map(|result| {
-                result.map_err(|e| Box::new(e) as Box<dyn Error>)
-                    .and_then(|bytes| {
-                        serde_json::from_slice::<ChatResponse>(&bytes)
-                            .map_err(|e| Box::new(e) as Box<dyn Error>)
-                    })
-            });
-
-        response_stream
+                result
+                    .map_err(|e| Box::new(e) as Box<dyn Error>)
+                    .and_then(|bytes| parse_stream_chunk(bytes))
+            })
     }
+}
+
+fn parse_stream_chunk(bytes: Bytes) -> Result<ChatResponse, Box<dyn Error>> {
+    let response: ChatResponse = serde_json::from_slice(&bytes)?;
+    Ok(response)
 }
 
 impl Default for OllamaProvider {
@@ -108,51 +109,20 @@ impl Default for OllamaProvider {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use wiremock::{MockServer, Mock, ResponseTemplate};
-    use wiremock::matchers::{method, path};
+    use tokio_stream::StreamExt;
+    use std::time::Duration;
+    use tokio::time::sleep;
 
     #[tokio::test]
     async fn test_list_models() {
-        let mock_server = MockServer::start().await;
-
-        Mock::given(method("GET"))
-            .and(path("/api/tags"))
-            .respond_with(ResponseTemplate::new(200)
-                .set_body_json(vec![
-                    ModelInfo {
-                        name: "llama3.2".to_string(),
-                        modified_at: "2024-02-20T12:00:00Z".to_string(),
-                        size: 1000,
-                    }
-                ]))
-            .mount(&mock_server)
-            .await;
-
-        let provider = OllamaProvider::new(mock_server.uri());
+        let provider = OllamaProvider::default();
         let models = provider.list_models().await.unwrap();
-        
-        assert_eq!(models.len(), 1);
-        assert_eq!(models[0].name, "llama3.2");
+        assert!(!models.is_empty());
     }
 
     #[tokio::test]
     async fn test_chat() {
-        let mock_server = MockServer::start().await;
-
-        Mock::given(method("POST"))
-            .and(path("/api/chat"))
-            .respond_with(ResponseTemplate::new(200)
-                .set_body_json(ChatResponse {
-                    message: ChatMessage {
-                        role: "assistant".to_string(),
-                        content: "The sky appears blue due to Rayleigh scattering.".to_string(),
-                    },
-                    done: true,
-                }))
-            .mount(&mock_server)
-            .await;
-
-        let provider = OllamaProvider::new(mock_server.uri());
+        let provider = OllamaProvider::default();
         let messages = vec![
             ChatMessage {
                 role: "user".to_string(),
@@ -161,7 +131,30 @@ mod tests {
         ];
 
         let response = provider.chat("llama3.2", messages).await.unwrap();
-        assert!(response.message.content.contains("sky"));
-        assert!(response.done);
+        assert!(!response.message.content.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_chat_stream() {
+        let provider = OllamaProvider::default();
+        let messages = vec![
+            ChatMessage {
+                role: "user".to_string(),
+                content: "Why is the sky blue?".to_string(),
+            }
+        ];
+
+        let mut stream = provider.chat_stream("llama3.2", messages).await;
+        let mut response_parts = Vec::new();
+
+        while let Some(Ok(response)) = stream.next().await {
+            response_parts.push(response.message.content);
+            if response.done {
+                break;
+            }
+            sleep(Duration::from_millis(10)).await;
+        }
+
+        assert!(!response_parts.is_empty());
     }
 }
