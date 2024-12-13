@@ -1,4 +1,5 @@
 use log::info;
+use std::thread;
 
 fn main() {
     // Initialize logging
@@ -6,14 +7,14 @@ fn main() {
     
     info!("Starting MCP server...");
     
-    // Create a new tokio runtime for the MCP server
-    let rt = tokio::runtime::Runtime::new().expect("Failed to create Tokio runtime");
-    
-    // Spawn MCP server in the background
-    rt.spawn(async {
-        if let Err(e) = pylon_lib::start_mcp_server("127.0.0.1".to_string(), 8080).await {
-            log::error!("MCP server error: {}", e);
-        }
+    // Start MCP server in a separate thread
+    thread::spawn(|| {
+        let system = actix_web::rt::System::new();
+        system.block_on(async {
+            if let Err(e) = pylon_lib::start_mcp_server("127.0.0.1".to_string(), 8080).await {
+                log::error!("MCP server error: {}", e);
+            }
+        });
     });
 
     // Run Tauri application
