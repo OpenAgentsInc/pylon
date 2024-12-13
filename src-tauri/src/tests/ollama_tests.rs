@@ -28,12 +28,12 @@ mod tests {
             }
         ];
 
-        let response = provider.chat("llama2", messages.clone()).await.unwrap();
+        let response = provider.chat("llama3.2", messages.clone()).await.unwrap();
         assert!(!response.message.content.is_empty());
         println!("Chat response: {}", response.message.content);
 
         // Test streaming
-        let mut stream = provider.chat_stream("llama2", messages).await;
+        let mut stream = provider.chat_stream("llama3.2", messages).await;
         let mut response_parts = Vec::new();
 
         while let Some(Ok(response)) = stream.next().await {
@@ -84,13 +84,16 @@ mod tests {
             }
         ];
 
-        let mut stream = provider.chat_stream("llama2", messages).await;
+        let mut stream = provider.chat_stream("llama3.2", messages).await;
         let mut response_parts = Vec::new();
         let mut full_response = String::new();
 
         while let Some(Ok(response)) = stream.next().await {
-            response_parts.push(response.message.content.clone());
-            full_response.push_str(&response.message.content);
+            let content = response.message.content.clone();
+            if !content.is_empty() {
+                response_parts.push(content.clone());
+                full_response.push_str(&content);
+            }
             if response.done {
                 break;
             }
