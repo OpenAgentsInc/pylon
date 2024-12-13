@@ -24,17 +24,14 @@ impl FileSystemProvider {
     }
 
     fn validate_path(&self, path: &str) -> Result<PathBuf, ResourceError> {
-        let path = Path::new(path);
-        
-        // Convert to absolute path
-        let abs_path = if path.is_absolute() {
-            path.to_path_buf()
+        let path = if path == "." {
+            self.root_path.clone()
         } else {
             self.root_path.join(path)
         };
         
         // Canonicalize to resolve any .. or symlinks
-        let canonical = abs_path.canonicalize()
+        let canonical = path.canonicalize()
             .map_err(|e| ResourceError::InvalidPath(e.to_string()))?;
             
         // Verify it's under root_path
