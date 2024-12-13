@@ -70,15 +70,32 @@ mod tests {
                 "protocolVersion": MCP_VERSION
             }
         });
+        
         connection.send(ws::Message::Text(test_msg.to_string().into())).await.unwrap();
 
-        // Receive response
+        // Receive and parse response
         if let Some(Ok(ws::Frame::Text(bytes))) = connection.next().await {
             let response: Value = serde_json::from_slice(&bytes).unwrap();
-            assert_eq!(response["jsonrpc"], JSONRPC_VERSION);
-            assert_eq!(response["id"], 1);
-            assert!(response["result"]["capabilities"].is_object());
-            assert_eq!(response["result"]["protocol_version"], MCP_VERSION);
+            println!("Received response: {}", serde_json::to_string_pretty(&response).unwrap());
+            
+            // Basic JSON-RPC response structure checks
+            assert!(response.is_object(), "Response should be a JSON object");
+            assert!(response.get("jsonrpc").is_some(), "Response should have jsonrpc field");
+            assert!(response.get("id").is_some(), "Response should have id field");
+            assert!(response.get("result").is_some(), "Response should have result field");
+            
+            // Verify specific fields
+            assert_eq!(response["jsonrpc"].as_str().unwrap(), JSONRPC_VERSION);
+            assert_eq!(response["id"].as_i64().unwrap(), 1);
+            
+            // Verify result structure
+            let result = &response["result"];
+            assert!(result.is_object(), "Result should be an object");
+            assert!(result.get("capabilities").is_some(), "Result should have capabilities");
+            assert!(result.get("protocol_version").is_some(), "Result should have protocol_version");
+            assert!(result.get("server_info").is_some(), "Result should have server_info");
+            
+            assert_eq!(result["protocol_version"].as_str().unwrap(), MCP_VERSION);
         } else {
             panic!("Expected text response");
         }
@@ -156,20 +173,46 @@ mod tests {
         // Verify both clients receive responses
         if let Some(Ok(ws::Frame::Text(bytes))) = connection1.next().await {
             let response: Value = serde_json::from_slice(&bytes).unwrap();
-            assert_eq!(response["jsonrpc"], JSONRPC_VERSION);
-            assert_eq!(response["id"], 1);
-            assert!(response["result"]["capabilities"].is_object());
-            assert_eq!(response["result"]["protocol_version"], MCP_VERSION);
+            println!("Client 1 received response: {}", serde_json::to_string_pretty(&response).unwrap());
+            
+            assert!(response.is_object(), "Response should be a JSON object");
+            assert!(response.get("jsonrpc").is_some(), "Response should have jsonrpc field");
+            assert!(response.get("id").is_some(), "Response should have id field");
+            assert!(response.get("result").is_some(), "Response should have result field");
+            
+            assert_eq!(response["jsonrpc"].as_str().unwrap(), JSONRPC_VERSION);
+            assert_eq!(response["id"].as_i64().unwrap(), 1);
+            
+            let result = &response["result"];
+            assert!(result.is_object(), "Result should be an object");
+            assert!(result.get("capabilities").is_some(), "Result should have capabilities");
+            assert!(result.get("protocol_version").is_some(), "Result should have protocol_version");
+            assert!(result.get("server_info").is_some(), "Result should have server_info");
+            
+            assert_eq!(result["protocol_version"].as_str().unwrap(), MCP_VERSION);
         } else {
             panic!("Client 1 did not receive response");
         }
 
         if let Some(Ok(ws::Frame::Text(bytes))) = connection2.next().await {
             let response: Value = serde_json::from_slice(&bytes).unwrap();
-            assert_eq!(response["jsonrpc"], JSONRPC_VERSION);
-            assert_eq!(response["id"], 2);
-            assert!(response["result"]["capabilities"].is_object());
-            assert_eq!(response["result"]["protocol_version"], MCP_VERSION);
+            println!("Client 2 received response: {}", serde_json::to_string_pretty(&response).unwrap());
+            
+            assert!(response.is_object(), "Response should be a JSON object");
+            assert!(response.get("jsonrpc").is_some(), "Response should have jsonrpc field");
+            assert!(response.get("id").is_some(), "Response should have id field");
+            assert!(response.get("result").is_some(), "Response should have result field");
+            
+            assert_eq!(response["jsonrpc"].as_str().unwrap(), JSONRPC_VERSION);
+            assert_eq!(response["id"].as_i64().unwrap(), 2);
+            
+            let result = &response["result"];
+            assert!(result.is_object(), "Result should be an object");
+            assert!(result.get("capabilities").is_some(), "Result should have capabilities");
+            assert!(result.get("protocol_version").is_some(), "Result should have protocol_version");
+            assert!(result.get("server_info").is_some(), "Result should have server_info");
+            
+            assert_eq!(result["protocol_version"].as_str().unwrap(), MCP_VERSION);
         } else {
             panic!("Client 2 did not receive response");
         }
