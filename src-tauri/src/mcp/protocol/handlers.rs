@@ -1,9 +1,7 @@
-use std::error::Error;
 use log::{error, info};
-use serde_json::Value;
-
 use crate::mcp::types::*;
 use crate::mcp::clients::ClientInfo;
+use crate::mcp::providers::ResourceProvider;
 use super::{MCPProtocol, types::*};
 
 impl MCPProtocol {
@@ -11,7 +9,7 @@ impl MCPProtocol {
         &self,
         client_id: &str,
         message: &str,
-    ) -> Result<String, Box<dyn Error>> {
+    ) -> Result<String, Box<dyn std::error::Error>> {
         let request: JsonRpcRequest = serde_json::from_str(message)?;
 
         // Update last message for client
@@ -38,7 +36,7 @@ impl MCPProtocol {
         }
     }
 
-    pub(crate) async fn handle_ollama_chat(&self, request: &JsonRpcRequest) -> Result<String, Box<dyn Error>> {
+    pub(crate) async fn handle_ollama_chat(&self, request: &JsonRpcRequest) -> Result<String, Box<dyn std::error::Error>> {
         let params: ChatParams = serde_json::from_value(request.params.clone())?;
 
         match self
@@ -68,7 +66,7 @@ impl MCPProtocol {
     pub(crate) async fn handle_ollama_models(
         &self,
         request: &JsonRpcRequest,
-    ) -> Result<String, Box<dyn Error>> {
+    ) -> Result<String, Box<dyn std::error::Error>> {
         match self.ollama_provider.list_models().await {
             Ok(models) => {
                 let json_response = serde_json::json!({
@@ -92,7 +90,7 @@ impl MCPProtocol {
         &self,
         client_id: &str,
         request: &JsonRpcRequest,
-    ) -> Result<String, Box<dyn Error>> {
+    ) -> Result<String, Box<dyn std::error::Error>> {
         let params: InitializeParams = serde_json::from_value(request.params.clone())?;
         info!(
             "Received initialize request from client: {:?}",
@@ -148,7 +146,7 @@ impl MCPProtocol {
     pub(crate) async fn handle_list_resources(
         &self,
         request: &JsonRpcRequest,
-    ) -> Result<String, Box<dyn Error>> {
+    ) -> Result<String, Box<dyn std::error::Error>> {
         let params: ListParams = serde_json::from_value(request.params.clone())?;
         let path = params.path.unwrap_or_else(|| ".".to_string());
 
@@ -172,7 +170,7 @@ impl MCPProtocol {
     pub(crate) async fn handle_read_resource(
         &self,
         request: &JsonRpcRequest,
-    ) -> Result<String, Box<dyn Error>> {
+    ) -> Result<String, Box<dyn std::error::Error>> {
         let params: ReadParams = serde_json::from_value(request.params.clone())?;
 
         match self.fs_provider.as_ref().read(&params.path).await {
@@ -195,7 +193,7 @@ impl MCPProtocol {
     pub(crate) async fn handle_watch_resource(
         &self,
         request: &JsonRpcRequest,
-    ) -> Result<String, Box<dyn Error>> {
+    ) -> Result<String, Box<dyn std::error::Error>> {
         let params: WatchParams = serde_json::from_value(request.params.clone())?;
 
         match self.fs_provider.as_ref().watch(&params.path).await {
@@ -218,7 +216,7 @@ impl MCPProtocol {
     pub(crate) async fn handle_unwatch_resource(
         &self,
         request: &JsonRpcRequest,
-    ) -> Result<String, Box<dyn Error>> {
+    ) -> Result<String, Box<dyn std::error::Error>> {
         let params: UnwatchParams = serde_json::from_value(request.params.clone())?;
 
         match self.fs_provider.as_ref().unwatch(&params.path).await {
