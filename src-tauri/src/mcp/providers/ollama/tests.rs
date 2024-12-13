@@ -1,7 +1,7 @@
 use super::*;
 use tokio::time::sleep;
 use std::time::Duration;
-use crate::utils::ollama::is_ollama_running;
+use super::super::super::utils::ollama::is_ollama_running;
 use futures_util::StreamExt;
 
 #[tokio::test]
