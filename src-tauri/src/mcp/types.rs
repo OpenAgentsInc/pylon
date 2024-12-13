@@ -61,7 +61,9 @@ pub struct InitializeRequest {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InitializeParams {
     pub capabilities: ClientCapabilities,
+    #[serde(rename = "clientInfo")]
     pub client_info: Implementation,
+    #[serde(rename = "protocolVersion")]
     pub protocol_version: String,
 }
 
@@ -70,7 +72,9 @@ pub struct InitializeResult {
     pub capabilities: ServerCapabilities,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub instructions: Option<String>,
+    #[serde(rename = "protocolVersion")]
     pub protocol_version: String,
+    #[serde(rename = "serverInfo")]
     pub server_info: Implementation,
 }
 
