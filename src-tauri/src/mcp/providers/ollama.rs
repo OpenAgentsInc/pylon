@@ -5,6 +5,8 @@ use bytes::Bytes;
 use futures_util::stream::{self, BoxStream};
 use std::error::Error as StdError;
 
+type DynError = Box<dyn StdError + Send + Sync + 'static>;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChatMessage {
     pub role: String,
@@ -54,7 +56,7 @@ impl OllamaProvider {
         }
     }
 
-    pub async fn list_models(&self) -> Result<Vec<ModelInfo>, Box<dyn StdError>> {
+    pub async fn list_models(&self) -> Result<Vec<ModelInfo>, DynError> {
         let response = self.client
             .get(format!("{}/api/tags", self.endpoint))
             .send()
@@ -70,7 +72,7 @@ impl OllamaProvider {
         Ok(models_response.models)
     }
 
-    pub async fn chat(&self, model: &str, messages: Vec<ChatMessage>) -> Result<ChatResponse, Box<dyn StdError>> {
+    pub async fn chat(&self, model: &str, messages: Vec<ChatMessage>) -> Result<ChatResponse, DynError> {
         let request = ChatRequest {
             model: model.to_string(),
             messages,
@@ -93,7 +95,7 @@ impl OllamaProvider {
         Ok(response)
     }
 
-    pub async fn chat_stream(&self, model: &str, messages: Vec<ChatMessage>) -> BoxStream<'static, Result<ChatResponse, Box<dyn StdError>>> {
+    pub async fn chat_stream(&self, model: &str, messages: Vec<ChatMessage>) -> BoxStream<'static, Result<ChatResponse, DynError>> {
         let request = ChatRequest {
             model: model.to_string(),
             messages,
@@ -107,7 +109,7 @@ impl OllamaProvider {
                 Ok(r) => r,
                 Err(e) => {
                     return stream::once(async move { 
-                        Err(Box::new(e) as Box<dyn StdError>) 
+                        Err(Box::new(e) as DynError) 
                     }).boxed();
                 }
             };
@@ -121,26 +123,29 @@ impl OllamaProvider {
 
         let stream = response
             .bytes_stream()
-            .map(|result| -> Result<ChatResponse, Box<dyn StdError>> {
+            .map(|result| -> Result<ChatResponse, DynError> {
                 match result {
                     Ok(bytes) => parse_stream_chunk(bytes),
-                    Err(e) => Err(Box::new(e) as Box<dyn StdError>),
+                    Err(e) => Err(Box::new(e) as DynError),
                 }
             })
             .boxed();
 
         let mut last_response = None;
-        let filtered = stream.filter_map(move |result| async move {
-            match &result {
-                Ok(response) => {
-                    if response.done {
-                        last_response = Some(response.clone());
-                        None
-                    } else {
-                        Some(result)
+        let filtered = stream.filter_map(move |result| {
+            let mut last = last_response.clone();
+            async move {
+                match result {
+                    Ok(response) => {
+                        if response.done {
+                            last = Some(response.clone());
+                            None
+                        } else {
+                            Some(Ok(response))
+                        }
                     }
+                    Err(e) => Some(Err(e)),
                 }
-                Err(_) => Some(result),
             }
         });
 
@@ -160,7 +165,7 @@ impl OllamaProvider {
     }
 }
 
-fn parse_stream_chunk(bytes: Bytes) -> Result<ChatResponse, Box<dyn StdError>> {
+fn parse_stream_chunk(bytes: Bytes) -> Result<ChatResponse, DynError> {
     let response_text = String::from_utf8(bytes.to_vec())?;
     let response: ChatResponse = serde_json::from_str(&response_text)?;
     Ok(response)
