@@ -15,6 +15,8 @@ pub struct ClientCapabilities {
     pub roots: Option<RootsCapability>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub sampling: Option<HashMap<String, serde_json::Value>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ollama: Option<OllamaCapability>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -34,6 +36,15 @@ pub struct ServerCapabilities {
     pub resources: Option<ResourcesCapability>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tools: Option<ToolsCapability>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ollama: Option<OllamaCapability>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OllamaCapability {
+    pub available_models: Vec<String>,
+    pub endpoint: String,
+    pub streaming: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
