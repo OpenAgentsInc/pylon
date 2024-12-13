@@ -2,9 +2,6 @@ use reqwest::Client;
 use futures_util::StreamExt;
 use bytes::Bytes;
 use futures_util::stream::{self, BoxStream};
-use std::sync::Arc;
-use tokio::sync::Mutex;
-use serde_json;
 
 use super::types::*;
 
@@ -41,13 +38,15 @@ impl OllamaProvider {
     pub async fn chat(&self, model: &str, messages: Vec<ChatMessage>) -> Result<ChatResponse, DynError> {
         let mut stream = self.chat_stream(model, messages).await;
         let mut final_content = String::new();
-        let mut last_response: Option<ChatResponse> = None;
+        let mut model_name = String::new();
+        let mut created_at = String::new();
 
         while let Some(result) = stream.next().await {
             match result {
                 Ok(response) => {
                     final_content.push_str(&response.message.content);
-                    last_response = Some(response);
+                    model_name = response.model;
+                    created_at = response.created_at;
                     
                     if response.done {
                         return Ok(ChatResponse {
@@ -56,8 +55,8 @@ impl OllamaProvider {
                                 content: final_content,
                             },
                             done: true,
-                            model: response.model,
-                            created_at: response.created_at,
+                            model: model_name,
+                            created_at,
                         });
                     }
                 },
@@ -65,17 +64,18 @@ impl OllamaProvider {
             }
         }
 
-        match last_response {
-            Some(last) => Ok(ChatResponse {
+        if !final_content.is_empty() {
+            Ok(ChatResponse {
                 message: ChatMessage {
                     role: "assistant".to_string(),
                     content: final_content,
                 },
                 done: true,
-                model: last.model,
-                created_at: last.created_at,
-            }),
-            None => Err("No response received from stream".into())
+                model: model_name,
+                created_at,
+            })
+        } else {
+            Err("No response received from stream".into())
         }
     }
 
@@ -121,7 +121,6 @@ impl OllamaProvider {
 
 fn parse_stream_chunk(bytes: Bytes) -> Result<ChatResponse, DynError> {
     let response_text = String::from_utf8(bytes.to_vec())?;
-    
     let response: OllamaResponse = serde_json::from_str(&response_text)?;
     Ok(ChatResponse {
         message: response.message,
