@@ -6,9 +6,6 @@ use crate::mcp::types::{Resource, ResourceContents};
 pub mod filesystem;
 pub mod ollama;
 
-pub use filesystem::FileSystemProvider;
-pub use ollama::{OllamaProvider, ChatMessage, ChatResponse, ModelInfo};
-
 #[derive(Debug, thiserror::Error)]
 pub enum ResourceError {
     #[error("Resource not found: {0}")]
