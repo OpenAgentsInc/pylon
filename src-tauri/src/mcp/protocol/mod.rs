@@ -3,20 +3,16 @@ mod types;
 #[cfg(test)]
 mod tests;
 
-use std::error::Error;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use crate::mcp::clients::{ClientInfo, ClientManager};
+use crate::mcp::clients::ClientManager;
 use crate::mcp::providers::{
     filesystem::FileSystemProvider,
     ollama::OllamaProvider,
-    ResourceProvider,
-    ResourceError,
 };
 use crate::mcp::types::*;
 
-pub use handlers::*;
 pub use types::*;
 
 pub struct MCPProtocol {
