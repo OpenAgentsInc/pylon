@@ -22,7 +22,7 @@
 ### 3. MCP Protocol Implementation
 - [x] Implement core MCP types from schema
 - [x] Create initialization request/response handlers
-- [ ] Add client capability negotiation
+- [x] Add client capability negotiation
 - [x] Implement basic resource handling
 
 ### 4. Basic Client (for testing)
@@ -46,10 +46,10 @@
 ## Next Steps
 
 1. **Client Capability Negotiation**
-   - [ ] Implement client capability storage
-   - [ ] Add capability matching logic
-   - [ ] Create capability update handlers
-   - [ ] Add tests for capability negotiation
+   - [x] Implement client capability storage
+   - [x] Add capability matching logic
+   - [x] Create capability update handlers
+   - [x] Add tests for capability negotiation
 
 2. **Resource Handling**
    - [x] Implement resource provider interface
