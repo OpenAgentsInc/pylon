@@ -1,7 +1,7 @@
 use log::info;
 use std::thread;
 use std::sync::Arc;
-use crate::mcp::{MCPServer, MCPProtocol};
+use crate::mcp::MCPServer;
 
 mod commands;
 mod mcp;
