@@ -34,6 +34,11 @@ pub struct ModelInfo {
     pub modified_at: String,
 }
 
+#[derive(Debug, Deserialize)]
+struct ModelsResponse {
+    models: Vec<ModelInfo>
+}
+
 #[derive(Debug)]
 pub struct OllamaProvider {
     endpoint: String,
@@ -60,8 +65,8 @@ impl OllamaProvider {
         }
 
         let response_text = response.text().await?;
-        let models: Vec<ModelInfo> = serde_json::from_str(&response_text)?;
-        Ok(models)
+        let models_response: ModelsResponse = serde_json::from_str(&response_text)?;
+        Ok(models_response.models)
     }
 
     pub async fn chat(&self, model: &str, messages: Vec<ChatMessage>) -> Result<ChatResponse, Box<dyn Error>> {
