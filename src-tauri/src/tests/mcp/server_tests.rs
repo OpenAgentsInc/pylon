@@ -28,20 +28,12 @@ mod tests {
             .to_request();
 
         let resp = test::call_service(&app, req).await;
-        assert!(resp.status().is_success());
+        assert_eq!(resp.status(), 101); // 101 Switching Protocols is the correct response for WebSocket upgrade
     }
 
     #[actix_web::test]
     async fn test_websocket_echo() {
         // Create test server
-        let protocol = Arc::new(MCPProtocol::new());
-        let app = test::init_service(
-            App::new()
-                .app_data(web::Data::new(protocol))
-                .route("/mcp", web::get().to(handle_connection))
-        ).await;
-
-        // Start test server
         let srv = actix_test::start(move || {
             App::new()
                 .app_data(web::Data::new(MCPProtocol::new()))
@@ -51,6 +43,9 @@ mod tests {
         // Create test client with proper WebSocket connection
         let mut client = awc::Client::new()
             .ws(srv.url("/mcp"))
+            .insert_header(("upgrade", "websocket"))
+            .insert_header(("connection", "upgrade"))
+            .insert_header(("sec-websocket-version", "13"))
             .connect()
             .await
             .unwrap();
@@ -82,12 +77,18 @@ mod tests {
         // Create two clients with proper WebSocket connections
         let mut client1 = awc::Client::new()
             .ws(url.clone())
+            .insert_header(("upgrade", "websocket"))
+            .insert_header(("connection", "upgrade"))
+            .insert_header(("sec-websocket-version", "13"))
             .connect()
             .await
             .unwrap();
 
         let mut client2 = awc::Client::new()
             .ws(url)
+            .insert_header(("upgrade", "websocket"))
+            .insert_header(("connection", "upgrade"))
+            .insert_header(("sec-websocket-version", "13"))
             .connect()
             .await
             .unwrap();
