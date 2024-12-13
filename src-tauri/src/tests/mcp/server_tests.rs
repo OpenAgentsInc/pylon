@@ -51,18 +51,18 @@ mod tests {
         // Create test client with proper WebSocket connection
         let mut client = awc::Client::new()
             .ws(srv.url("/mcp"))
-            .connect_ws()
+            .connect()
             .await
             .unwrap();
 
         // Send test message
-        let test_msg = "Hello, WebSocket!";
+        let test_msg = r#"{"jsonrpc":"2.0","method":"initialize","params":{"capabilities":{},"clientInfo":{"name":"test","version":"1.0"},"protocolVersion":"0.1"},"id":1}"#;
         client.1.send(ws::Message::Text(test_msg.into())).await.unwrap();
 
         // Receive response
         if let Some(Ok(ws::Frame::Text(bytes))) = client.1.next().await {
             let response = String::from_utf8(bytes.to_vec()).unwrap();
-            assert!(response.contains("error")); // Since we're not sending valid JSON-RPC
+            assert!(response.contains("\"jsonrpc\":\"2.0\"")); // Should be valid JSON-RPC response
         } else {
             panic!("Expected text response");
         }
@@ -82,13 +82,13 @@ mod tests {
         // Create two clients with proper WebSocket connections
         let mut client1 = awc::Client::new()
             .ws(url.clone())
-            .connect_ws()
+            .connect()
             .await
             .unwrap();
 
         let mut client2 = awc::Client::new()
             .ws(url)
-            .connect_ws()
+            .connect()
             .await
             .unwrap();
 
