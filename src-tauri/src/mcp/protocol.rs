@@ -1,15 +1,18 @@
 use crate::mcp::types::*;
 use crate::mcp::providers::{filesystem::FileSystemProvider, ResourceProvider};
+use crate::mcp::clients::{ClientManager, ClientInfo, ClientCapabilities, RootsCapability};
 use log::{error, info};
 use serde_json::Value;
 use std::error::Error;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::collections::HashMap;
 
 pub struct MCPProtocol {
     server_info: Implementation,
     server_capabilities: ServerCapabilities,
     fs_provider: Arc<FileSystemProvider>,
+    client_manager: Arc<ClientManager>,
 }
 
 impl Default for MCPProtocol {
@@ -32,14 +35,22 @@ impl MCPProtocol {
                 ..Default::default()
             },
             fs_provider: Arc::new(FileSystemProvider::new(PathBuf::from("/Users/christopherdavid/code/pylon"))),
+            client_manager: Arc::new(ClientManager::new()),
         }
     }
 
-    pub async fn handle_message(&self, message: &str) -> Result<String, Box<dyn Error>> {
+    pub fn get_client_manager(&self) -> Arc<ClientManager> {
+        self.client_manager.clone()
+    }
+
+    pub async fn handle_message(&self, client_id: &str, message: &str) -> Result<String, Box<dyn Error>> {
         let request: JsonRpcRequest = serde_json::from_str(message)?;
 
+        // Update last message for client
+        self.client_manager.update_last_message(client_id, request.method.clone()).await;
+
         match request.method.as_str() {
-            "initialize" => self.handle_initialize(&request),
+            "initialize" => self.handle_initialize(client_id, &request).await,
             "resource/list" => self.handle_list_resources(&request).await,
             "resource/read" => self.handle_read_resource(&request).await,
             "resource/watch" => self.handle_watch_resource(&request).await,
@@ -51,12 +62,34 @@ impl MCPProtocol {
         }
     }
 
-    fn handle_initialize(&self, request: &JsonRpcRequest) -> Result<String, Box<dyn Error>> {
+    async fn handle_initialize(&self, client_id: &str, request: &JsonRpcRequest) -> Result<String, Box<dyn Error>> {
         let params: InitializeParams = serde_json::from_value(request.params.clone())?;
         info!(
             "Received initialize request from client: {:?}",
             params.client_info
         );
+
+        // Store client info
+        let client_info = ClientInfo {
+            name: params.client_info.name.clone(),
+            version: params.client_info.version.clone(),
+        };
+
+        let capabilities = ClientCapabilities {
+            experimental: params.capabilities.experimental.unwrap_or_default(),
+            roots: RootsCapability {
+                list_changed: params.capabilities.roots
+                    .map(|r| r.list_changed)
+                    .unwrap_or_default(),
+            },
+            sampling: params.capabilities.sampling.unwrap_or_default(),
+        };
+
+        self.client_manager.add_client(
+            client_id.to_string(),
+            client_info,
+            capabilities,
+        ).await;
 
         // Create initialize result
         let result = InitializeResult {
@@ -195,7 +228,7 @@ impl MCPProtocol {
 
         serde_json::to_string(&error).unwrap_or_else(|e| {
             format!(
-                r#"{{"jsonrpc":"2.0","id":null,"error":{{"code":-32603,"message":"Error creating error response: {}"}}}}"#,
+                r#"{{"jsonrpc":"2.0","id":null,"error":{{"code":-32603,"message":"Error creating error response: {}"}}"}}"#,
                 e
             )
         })
@@ -206,8 +239,8 @@ impl MCPProtocol {
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_initialize_request() {
+    #[tokio::test]
+    async fn test_initialize_request() {
         let protocol = MCPProtocol::new();
 
         let request = JsonRpcRequest {
@@ -225,7 +258,7 @@ mod tests {
             .unwrap(),
         };
 
-        let response = protocol.handle_initialize(&request).unwrap();
+        let response = protocol.handle_initialize("test-id", &request).await.unwrap();
 
         let response: Value = serde_json::from_str(&response).unwrap();
         assert_eq!(response["jsonrpc"], JSONRPC_VERSION);
@@ -236,6 +269,12 @@ mod tests {
         assert!(result["capabilities"].is_object());
         assert_eq!(result["protocol_version"], MCP_VERSION);
         assert!(result["server_info"].is_object());
+
+        // Verify client was added
+        let clients = protocol.get_client_manager().get_clients().await;
+        assert_eq!(clients.len(), 1);
+        assert_eq!(clients[0].id, "test-id");
+        assert_eq!(clients[0].client_info.name, "test-client");
     }
 
     #[test]
