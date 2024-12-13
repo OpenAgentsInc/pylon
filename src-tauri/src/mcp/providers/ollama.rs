@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use futures_util::Stream;
 use tokio_stream::StreamExt;
 use bytes::Bytes;
+use futures_util::stream::StreamExt as _;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChatMessage {
@@ -85,8 +86,7 @@ impl OllamaProvider {
             .await
             .unwrap(); // TODO: Better error handling
 
-        response
-            .bytes_stream()
+        reqwest::Body::wrap_stream(response.bytes_stream())
             .map(|result| {
                 result
                     .map_err(|e| Box::new(e) as Box<dyn Error>)
@@ -109,9 +109,8 @@ impl Default for OllamaProvider {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tokio_stream::StreamExt;
-    use std::time::Duration;
     use tokio::time::sleep;
+    use std::time::Duration;
 
     #[tokio::test]
     async fn test_list_models() {
@@ -140,15 +139,17 @@ mod tests {
         let messages = vec![
             ChatMessage {
                 role: "user".to_string(),
-                content: "Why is the sky blue?".to_string(),
+                content: "Count from 1 to 5.".to_string(),
             }
         ];
 
         let mut stream = provider.chat_stream("llama3.2", messages).await;
         let mut response_parts = Vec::new();
+        let mut full_response = String::new();
 
         while let Some(Ok(response)) = stream.next().await {
-            response_parts.push(response.message.content);
+            response_parts.push(response.message.content.clone());
+            full_response.push_str(&response.message.content);
             if response.done {
                 break;
             }
@@ -156,5 +157,7 @@ mod tests {
         }
 
         assert!(!response_parts.is_empty());
+        println!("Full streaming response: {}", full_response);
+        assert!(full_response.contains("1") && full_response.contains("5"));
     }
 }
