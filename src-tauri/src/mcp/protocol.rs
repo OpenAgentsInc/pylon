@@ -1,6 +1,10 @@
+use crate::mcp::clients::{ClientInfo, ClientManager};
+use crate::mcp::providers::{
+    filesystem::FileSystemProvider,
+    ollama::{ChatMessage, OllamaProvider},
+    ResourceProvider,
+};
 use crate::mcp::types::*;
-use crate::mcp::providers::{filesystem::FileSystemProvider, ollama::{OllamaProvider, ChatMessage}, ResourceProvider};
-use crate::mcp::clients::{ClientManager, ClientInfo};
 use log::{error, info};
 use serde_json::Value;
 use std::error::Error;
@@ -41,7 +45,9 @@ impl MCPProtocol {
                 }),
                 ..Default::default()
             },
-            fs_provider: Arc::new(FileSystemProvider::new(PathBuf::from("/Users/christopherdavid/code/pylon"))),
+            fs_provider: Arc::new(FileSystemProvider::new(PathBuf::from(
+                "/Users/christopherdavid/code/pylon",
+            ))),
             ollama_provider,
             client_manager: Arc::new(ClientManager::new()),
         }
@@ -51,11 +57,17 @@ impl MCPProtocol {
         self.client_manager.clone()
     }
 
-    pub async fn handle_message(&self, client_id: &str, message: &str) -> Result<String, Box<dyn Error>> {
+    pub async fn handle_message(
+        &self,
+        client_id: &str,
+        message: &str,
+    ) -> Result<String, Box<dyn Error>> {
         let request: JsonRpcRequest = serde_json::from_str(message)?;
 
         // Update last message for client
-        self.client_manager.update_last_message(client_id, request.method.clone()).await;
+        self.client_manager
+            .update_last_message(client_id, request.method.clone())
+            .await;
 
         match request.method.as_str() {
             "initialize" => self.handle_initialize(client_id, &request).await,
@@ -67,7 +79,11 @@ impl MCPProtocol {
             "ollama/models" => self.handle_ollama_models(&request).await,
             _ => {
                 error!("Unknown method: {}", request.method);
-                Ok(self.create_error_response(request.id.clone(), -32601, "Method not found".to_string()))
+                Ok(self.create_error_response(
+                    request.id.clone(),
+                    -32601,
+                    "Method not found".to_string(),
+                ))
             }
         }
     }
@@ -80,8 +96,12 @@ impl MCPProtocol {
         }
 
         let params: ChatParams = serde_json::from_value(request.params.clone())?;
-        
-        match self.ollama_provider.chat(&params.model, params.messages).await {
+
+        match self
+            .ollama_provider
+            .chat(&params.model, params.messages)
+            .await
+        {
             Ok(response) => {
                 let json_response = serde_json::json!({
                     "jsonrpc": JSONRPC_VERSION,
@@ -101,7 +121,10 @@ impl MCPProtocol {
         }
     }
 
-    async fn handle_ollama_models(&self, request: &JsonRpcRequest) -> Result<String, Box<dyn Error>> {
+    async fn handle_ollama_models(
+        &self,
+        request: &JsonRpcRequest,
+    ) -> Result<String, Box<dyn Error>> {
         match self.ollama_provider.list_models().await {
             Ok(models) => {
                 let json_response = serde_json::json!({
@@ -121,7 +144,11 @@ impl MCPProtocol {
         }
     }
 
-    async fn handle_initialize(&self, client_id: &str, request: &JsonRpcRequest) -> Result<String, Box<dyn Error>> {
+    async fn handle_initialize(
+        &self,
+        client_id: &str,
+        request: &JsonRpcRequest,
+    ) -> Result<String, Box<dyn Error>> {
         let params: InitializeParams = serde_json::from_value(request.params.clone())?;
         info!(
             "Received initialize request from client: {:?}",
@@ -137,7 +164,9 @@ impl MCPProtocol {
         let capabilities = ClientCapabilities {
             experimental: Some(params.capabilities.experimental.unwrap_or_default()),
             roots: Some(RootsCapability {
-                list_changed: params.capabilities.roots
+                list_changed: params
+                    .capabilities
+                    .roots
                     .map(|r| r.list_changed)
                     .unwrap_or_default(),
             }),
@@ -145,11 +174,9 @@ impl MCPProtocol {
             ollama: params.capabilities.ollama,
         };
 
-        self.client_manager.add_client(
-            client_id.to_string(),
-            client_info,
-            capabilities,
-        ).await;
+        self.client_manager
+            .add_client(client_id.to_string(), client_info, capabilities)
+            .await;
 
         // Create initialize result
         let result = InitializeResult {
@@ -174,7 +201,10 @@ impl MCPProtocol {
         Ok(serde_json::to_string(&response)?)
     }
 
-    async fn handle_list_resources(&self, request: &JsonRpcRequest) -> Result<String, Box<dyn Error>> {
+    async fn handle_list_resources(
+        &self,
+        request: &JsonRpcRequest,
+    ) -> Result<String, Box<dyn Error>> {
         #[derive(serde::Deserialize)]
         struct ListParams {
             path: Option<String>,
@@ -200,7 +230,10 @@ impl MCPProtocol {
         }
     }
 
-    async fn handle_read_resource(&self, request: &JsonRpcRequest) -> Result<String, Box<dyn Error>> {
+    async fn handle_read_resource(
+        &self,
+        request: &JsonRpcRequest,
+    ) -> Result<String, Box<dyn Error>> {
         #[derive(serde::Deserialize)]
         struct ReadParams {
             path: String,
@@ -225,7 +258,10 @@ impl MCPProtocol {
         }
     }
 
-    async fn handle_watch_resource(&self, request: &JsonRpcRequest) -> Result<String, Box<dyn Error>> {
+    async fn handle_watch_resource(
+        &self,
+        request: &JsonRpcRequest,
+    ) -> Result<String, Box<dyn Error>> {
         #[derive(serde::Deserialize)]
         struct WatchParams {
             path: String,
@@ -250,7 +286,10 @@ impl MCPProtocol {
         }
     }
 
-    async fn handle_unwatch_resource(&self, request: &JsonRpcRequest) -> Result<String, Box<dyn Error>> {
+    async fn handle_unwatch_resource(
+        &self,
+        request: &JsonRpcRequest,
+    ) -> Result<String, Box<dyn Error>> {
         #[derive(serde::Deserialize)]
         struct UnwatchParams {
             path: String,
@@ -318,7 +357,10 @@ mod tests {
             .unwrap(),
         };
 
-        let response = protocol.handle_initialize("test-id", &request).await.unwrap();
+        let response = protocol
+            .handle_initialize("test-id", &request)
+            .await
+            .unwrap();
 
         let response: Value = serde_json::from_str(&response).unwrap();
         assert_eq!(response["jsonrpc"], JSONRPC_VERSION);
@@ -348,11 +390,8 @@ mod tests {
             params: serde_json::Value::Null,
         };
 
-        let response = protocol.create_error_response(
-            request.id,
-            -32601,
-            "Method not found".to_string()
-        );
+        let response =
+            protocol.create_error_response(request.id, -32601, "Method not found".to_string());
 
         let error: Value = serde_json::from_str(&response).unwrap();
         assert_eq!(error["jsonrpc"], JSONRPC_VERSION);
@@ -380,11 +419,22 @@ mod tests {
             }),
         };
 
+        if !crate::utils::ollama::is_ollama_running().await {
+            eprintln!("Skipping test: Ollama is not running");
+            return;
+        }
+
         let response = protocol.handle_ollama_chat(&request).await.unwrap();
         let response: Value = serde_json::from_str(&response).unwrap();
-        
+
         assert_eq!(response["jsonrpc"], JSONRPC_VERSION);
         assert_eq!(response["id"], 1);
-        assert!(response["result"]["message"]["content"].as_str().unwrap().len() > 0);
+        assert!(
+            response["result"]["message"]["content"]
+                .as_str()
+                .unwrap()
+                .len()
+                > 0
+        );
     }
 }
