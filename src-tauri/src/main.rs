@@ -5,6 +5,7 @@ use crate::mcp::MCPServer;
 
 mod commands;
 mod mcp;
+mod utils;
 
 fn main() {
     // Initialize logging
