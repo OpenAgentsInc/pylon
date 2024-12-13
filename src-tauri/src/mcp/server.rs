@@ -46,17 +46,20 @@ pub async fn handle_connection(
 ) -> Result<HttpResponse, Error> {
     let (response, mut session, mut msg_stream) = actix_ws::handle(&req, body)?;
 
-    let client_id = uuid::Uuid::new_v4();
+    let client_id = uuid::Uuid::new_v4().to_string();
     info!("New WebSocket connection: {}", client_id);
 
     // Spawn client handler
+    let protocol_clone = protocol.clone();
+    let client_id_clone = client_id.clone();
+    
     actix_web::rt::spawn(async move {
         while let Some(Ok(msg)) = msg_stream.next().await {
             match msg {
                 Message::Text(text) => {
                     info!("Received message from {}: {}", client_id, text);
 
-                    match protocol.handle_message(&text).await {
+                    match protocol.handle_message(&client_id, &text).await {
                         Ok(response) => {
                             if let Err(e) = session.text(response).await {
                                 error!("Error sending response to {}: {}", client_id, e);
@@ -94,6 +97,8 @@ pub async fn handle_connection(
         }
 
         // Clean up when client disconnects
+        protocol_clone.get_client_manager().remove_client(&client_id_clone).await;
+        
         if let Err(e) = session.close(None).await {
             error!("Error closing session for {}: {}", client_id, e);
         }
