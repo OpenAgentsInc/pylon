@@ -6,7 +6,7 @@ mod tests {
     use std::sync::Arc;
     use serde_json::Value;
 
-    use crate::mcp::MCPProtocol;
+    use crate::mcp::protocol::MCPProtocol;
     use crate::mcp::server::handle_connection;
     use crate::mcp::types::{JSONRPC_VERSION, MCP_VERSION};
 

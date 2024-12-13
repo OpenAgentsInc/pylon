@@ -4,25 +4,12 @@ use tokio::sync::RwLock;
 use serde::{Serialize, Deserialize};
 use chrono::{DateTime, Utc};
 
+use crate::mcp::types::ClientCapabilities;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ClientInfo {
     pub name: String,
     pub version: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ClientCapabilities {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub experimental: Option<HashMap<String, HashMap<String, serde_json::Value>>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub roots: Option<RootsCapability>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub sampling: Option<HashMap<String, serde_json::Value>>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RootsCapability {
-    pub list_changed: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -73,19 +60,10 @@ impl ClientManager {
     }
 }
 
-impl Default for ClientCapabilities {
-    fn default() -> Self {
-        Self {
-            experimental: None,
-            roots: None,
-            sampling: None,
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::mcp::types::OllamaCapability;
 
     #[tokio::test]
     async fn test_client_management() {
@@ -98,8 +76,13 @@ mod tests {
         };
         let capabilities = ClientCapabilities {
             experimental: None,
-            roots: Some(RootsCapability { list_changed: true }),
+            roots: None,
             sampling: None,
+            ollama: Some(OllamaCapability {
+                available_models: vec!["llama3.2".to_string()],
+                endpoint: "http://localhost:11434".to_string(),
+                streaming: true,
+            }),
         };
         manager.add_client("test-id".to_string(), info.clone(), capabilities).await;
 

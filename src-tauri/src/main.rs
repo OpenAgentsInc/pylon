@@ -1,10 +1,9 @@
 use log::info;
 use std::thread;
 use std::sync::Arc;
-use crate::mcp::{MCPServer, MCPProtocol};
+use pylon_lib::mcp::MCPServer;
 
 mod commands;
-mod mcp;
 
 fn main() {
     // Initialize logging

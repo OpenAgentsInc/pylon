@@ -78,6 +78,10 @@ impl FileSystemProvider {
 
 #[async_trait]
 impl ResourceProvider for FileSystemProvider {
+    fn name(&self) -> &'static str {
+        "filesystem"
+    }
+
     async fn list(&self, path: &str) -> Result<Vec<Resource>, ResourceError> {
         let path = self.validate_path(path)?;
         
