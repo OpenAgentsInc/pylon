@@ -1,5 +1,5 @@
 use crate::mcp::types::*;
-use crate::mcp::providers::{filesystem::FileSystemProvider, ResourceProvider};
+use crate::mcp::providers::{filesystem::FileSystemProvider, ollama::OllamaProvider, ResourceProvider};
 use crate::mcp::clients::{ClientManager, ClientInfo};
 use log::{error, info};
 use serde_json::Value;
@@ -11,6 +11,7 @@ pub struct MCPProtocol {
     server_info: Implementation,
     server_capabilities: ServerCapabilities,
     fs_provider: Arc<FileSystemProvider>,
+    ollama_provider: Arc<OllamaProvider>,
     client_manager: Arc<ClientManager>,
 }
 
@@ -22,6 +23,8 @@ impl Default for MCPProtocol {
 
 impl MCPProtocol {
     pub fn new() -> Self {
+        let ollama_provider = Arc::new(OllamaProvider::default());
+
         Self {
             server_info: Implementation::default(),
             server_capabilities: ServerCapabilities {
@@ -31,9 +34,15 @@ impl MCPProtocol {
                 }),
                 tools: Some(ToolsCapability { list_changed: true }),
                 prompts: Some(PromptsCapability { list_changed: true }),
+                ollama: Some(OllamaCapability {
+                    available_models: Vec::new(), // Will be populated after initialization
+                    endpoint: "http://localhost:11434".to_string(),
+                    streaming: true,
+                }),
                 ..Default::default()
             },
             fs_provider: Arc::new(FileSystemProvider::new(PathBuf::from("/Users/christopherdavid/code/pylon"))),
+            ollama_provider,
             client_manager: Arc::new(ClientManager::new()),
         }
     }
@@ -54,10 +63,56 @@ impl MCPProtocol {
             "resource/read" => self.handle_read_resource(&request).await,
             "resource/watch" => self.handle_watch_resource(&request).await,
             "resource/unwatch" => self.handle_unwatch_resource(&request).await,
+            "ollama/chat" => self.handle_ollama_chat(&request).await,
+            "ollama/models" => self.handle_ollama_models(&request).await,
             _ => {
                 error!("Unknown method: {}", request.method);
                 Ok(self.create_error_response(request.id.clone(), -32601, "Method not found".to_string()))
             }
+        }
+    }
+
+    async fn handle_ollama_chat(&self, request: &JsonRpcRequest) -> Result<String, Box<dyn Error>> {
+        #[derive(serde::Deserialize)]
+        struct ChatParams {
+            model: String,
+            messages: Vec<ChatMessage>,
+        }
+
+        let params: ChatParams = serde_json::from_value(request.params.clone())?;
+        
+        match self.ollama_provider.chat(&params.model, params.messages).await {
+            Ok(response) => {
+                let json_response = serde_json::json!({
+                    "jsonrpc": JSONRPC_VERSION,
+                    "id": request.id,
+                    "result": response
+                });
+                Ok(serde_json::to_string(&json_response)?)
+            }
+            Err(e) => Ok(self.create_error_response(
+                request.id.clone(),
+                -32000,
+                format!("Chat error: {}", e),
+            )),
+        }
+    }
+
+    async fn handle_ollama_models(&self, request: &JsonRpcRequest) -> Result<String, Box<dyn Error>> {
+        match self.ollama_provider.list_models().await {
+            Ok(models) => {
+                let json_response = serde_json::json!({
+                    "jsonrpc": JSONRPC_VERSION,
+                    "id": request.id,
+                    "result": models
+                });
+                Ok(serde_json::to_string(&json_response)?)
+            }
+            Err(e) => Ok(self.create_error_response(
+                request.id.clone(),
+                -32000,
+                format!("Error listing models: {}", e),
+            )),
         }
     }
 
@@ -82,6 +137,7 @@ impl MCPProtocol {
                     .unwrap_or_default(),
             }),
             sampling: Some(params.capabilities.sampling.unwrap_or_default()),
+            ollama: params.capabilities.ollama,
         };
 
         self.client_manager.add_client(
@@ -298,5 +354,32 @@ mod tests {
         assert_eq!(error["id"], 1);
         assert_eq!(error["error"]["code"], -32601);
         assert_eq!(error["error"]["message"], "Method not found");
+    }
+
+    #[tokio::test]
+    async fn test_ollama_chat() {
+        let protocol = MCPProtocol::new();
+
+        let request = JsonRpcRequest {
+            jsonrpc: JSONRPC_VERSION.to_string(),
+            id: serde_json::Value::Number(serde_json::Number::from(1)),
+            method: "ollama/chat".to_string(),
+            params: serde_json::json!({
+                "model": "llama3.2",
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": "Why is the sky blue?"
+                    }
+                ]
+            }),
+        };
+
+        let response = protocol.handle_ollama_chat(&request).await.unwrap();
+        let response: Value = serde_json::from_str(&response).unwrap();
+        
+        assert_eq!(response["jsonrpc"], JSONRPC_VERSION);
+        assert_eq!(response["id"], 1);
+        assert!(response["result"]["message"]["content"].as_str().unwrap().len() > 0);
     }
 }
