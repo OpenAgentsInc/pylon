@@ -37,3 +37,11 @@ pub struct ModelInfo {
 pub(crate) struct ModelsResponse {
     pub models: Vec<ModelInfo>
 }
+
+#[derive(Debug, Deserialize)]
+pub(crate) struct OllamaResponse {
+    pub model: String,
+    pub response: String,
+    pub done: bool,
+    pub created_at: Option<String>,
+}
