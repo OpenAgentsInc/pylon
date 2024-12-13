@@ -2,31 +2,88 @@
 
 ## Overview
 
-This document outlines the plan for testing the initial WebSocket handshake between Onyx (client) and Pylon (server) applications.
+This document outlines the plan for testing the initial WebSocket handshake between Onyx (client) and Pylon (server) applications, with specific file locations for implementation.
 
-## Components
+## File Locations
 
 ### Pylon (Server)
-- WebSocket server running on localhost:3000
-- MCP protocol implementation
-- Connection status display in frontend
+- WebSocket Server: `src-tauri/src/mcp/server.rs`
+- Frontend Status: `src/components/ConnectionStatus.tsx`
+- Main App Integration: `src/App.tsx`
 
 ### Onyx (Client)
-- WebSocket client implementation
-- Connection status display in frontend
-- Capability negotiation handling
+- WebSocket Client: `app/services/websocket/WebSocketService.ts`
+- Connection Hook: `app/services/websocket/useWebSocket.ts`
+- Types: `app/services/websocket/types.ts`
+- Status Display: `app/screens/OnyxScreen.tsx` (replace DVMButton with connection status)
 
-## Test Flow
+## Component Details
+
+### Pylon Components
+
+1. **WebSocket Server (`src-tauri/src/mcp/server.rs`)**
+```rust
+pub struct MCPServer {
+    ws_server: WebSocketServer,
+    clients: HashMap<ClientId, Client>,
+}
+
+impl MCPServer {
+    pub fn new() -> Self {
+        // Initialize server on localhost:3000
+    }
+}
+```
+
+2. **Frontend Status (`src/components/ConnectionStatus.tsx`)**
+```tsx
+export const ConnectionStatus = () => {
+  // Display server status, client count, etc
+}
+```
+
+### Onyx Components
+
+1. **WebSocket Service (`app/services/websocket/WebSocketService.ts`)**
+```typescript
+export class WebSocketService {
+  connect(url: string = 'ws://localhost:3000') {
+    // Connect to Pylon
+  }
+}
+```
+
+2. **Connection Hook (`app/services/websocket/useWebSocket.ts`)**
+```typescript
+export const useWebSocket = () => {
+  // Manage connection state
+}
+```
+
+3. **Status Display (`app/screens/OnyxScreen.tsx`)**
+```typescript
+// Replace:
+{/* <DVMButton /> */}
+
+// With:
+<ConnectionStatus />
+```
+
+## Protocol Flow
 
 1. **Initial Connection**
-   - Pylon starts WebSocket server
-   - Onyx attempts connection to ws://localhost:3000
-   - Both frontends show "Connecting..." status
+   - Pylon server listens on `localhost:3000`
+   - Onyx connects via `WebSocketService`
+   - Both show connection status
 
 2. **WebSocket Handshake**
-   - Connection established
-   - Both frontends update to "Connected" status
-   - Connection IDs displayed on both ends
+   ```typescript
+   // In WebSocketService.ts
+   this.ws = new WebSocket('ws://localhost:3000')
+   this.ws.onopen = () => {
+     this.sendInitialize()
+   }
+   ```
 
 3. **MCP Protocol Initialization**
    ```json
@@ -58,55 +115,75 @@ This document outlines the plan for testing the initial WebSocket handshake betw
    }
    ```
 
-4. **Frontend Display**
-   - Pylon shows:
-     - WebSocket server status
-     - Number of connected clients
-     - Client capabilities
-   
-   - Onyx shows:
-     - Connection status
-     - Server capabilities
-     - Handshake completion status
-
 ## Implementation Steps
 
 1. **Pylon Updates**
-   - Add connection status component to frontend
-   - Display WebSocket server info
-   - Show connected client details
+   ```bash
+   # Create new files
+   touch src/components/ConnectionStatus.tsx
+   
+   # Update existing
+   # - src/App.tsx (add ConnectionStatus)
+   # - src-tauri/src/mcp/server.rs (implement WebSocket)
+   ```
 
 2. **Onyx Updates**
-   - Add connection status component
-   - Implement basic WebSocket client
-   - Display server connection info
+   ```bash
+   # Update existing
+   # - app/screens/OnyxScreen.tsx (replace DVMButton)
+   # - app/services/websocket/* (implement client)
+   ```
 
-3. **Testing**
-   - Manual testing of connection flow
-   - Verify status displays on both ends
-   - Test connection error scenarios
+## Testing
+
+### Manual Test Flow
+1. Start Pylon in dev mode
+2. Start Onyx in dev mode
+3. Verify connection status displays
+4. Check console logs for protocol messages
+
+### Automated Tests
+
+1. **Pylon Tests**
+   - Location: `src-tauri/src/tests/mcp/server_tests.rs`
+   ```rust
+   #[test]
+   fn test_client_connection() {
+     // Test connection handling
+   }
+   ```
+
+2. **Onyx Tests**
+   - Location: `app/services/websocket/__tests__/WebSocketService.test.ts`
+   ```typescript
+   describe('WebSocketService', () => {
+     test('connects successfully', () => {
+       // Test connection
+     })
+   })
+   ```
 
 ## Success Criteria
 
-1. **Connection Success**
-   - WebSocket connection established
-   - Status correctly displayed on both ends
-   - Connection IDs match
+1. **Visual Indicators**
+   - Pylon shows server status in `ConnectionStatus` component
+   - Onyx shows client status in `OnyxScreen`
+   - Both show matching connection IDs
 
 2. **Protocol Success**
-   - MCP initialization completed
-   - Capabilities exchanged
-   - Both applications show negotiated capabilities
+   - MCP initialization logged in dev tools
+   - Capabilities exchanged and displayed
+   - Connection state properly managed in `useWebSocket` hook
 
 3. **Error Handling**
-   - Connection failures gracefully handled
-   - Reconnection attempts shown
-   - Error states clearly displayed
+   - Connection failures shown in UI
+   - Automatic reconnection attempts visible
+   - Error states clearly indicated in status components
 
 ## Next Steps
 
 After successful handshake testing:
-1. Implement full MCP protocol
+1. Implement full MCP protocol in respective service files
 2. Add resource provider testing
 3. Implement tool provider testing
 4. Add payment flow testing
