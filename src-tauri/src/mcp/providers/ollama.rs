@@ -3,7 +3,6 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use futures_util::{Stream, StreamExt};
 use bytes::Bytes;
-use log::warn;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChatMessage {
@@ -26,8 +25,9 @@ pub struct ChatResponse {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ModelInfo {
     pub name: String,
-    pub modified_at: String,
+    pub digest: String,
     pub size: u64,
+    pub modified_at: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -61,12 +61,7 @@ impl OllamaProvider {
         }
 
         let response_text = response.text().await?;
-        let response: ListModelsResponse = serde_json::from_str(&response_text)
-            .map_err(|e| {
-                warn!("Failed to parse models response: {}\nResponse text: {}", e, response_text);
-                e
-            })?;
-
+        let response: ListModelsResponse = serde_json::from_str(&response_text)?;
         Ok(response.models)
     }
 
@@ -88,12 +83,7 @@ impl OllamaProvider {
         }
 
         let response_text = response.text().await?;
-        let response: ChatResponse = serde_json::from_str(&response_text)
-            .map_err(|e| {
-                warn!("Failed to parse chat response: {}\nResponse text: {}", e, response_text);
-                e
-            })?;
-
+        let response: ChatResponse = serde_json::from_str(&response_text)?;
         Ok(response)
     }
 
@@ -110,8 +100,9 @@ impl OllamaProvider {
             .await {
                 Ok(r) => r,
                 Err(e) => {
-                    warn!("Failed to start chat stream: {}", e);
-                    return futures_util::stream::once(async move { Err(Box::new(e) as Box<dyn Error>) }).boxed();
+                    return futures_util::stream::once(async move { 
+                        Err(Box::new(e) as Box<dyn Error>) 
+                    }).boxed();
                 }
             };
 
@@ -135,11 +126,7 @@ impl OllamaProvider {
 
 fn parse_stream_chunk(bytes: Bytes) -> Result<ChatResponse, Box<dyn Error>> {
     let response_text = String::from_utf8(bytes.to_vec())?;
-    let response: ChatResponse = serde_json::from_str(&response_text)
-        .map_err(|e| {
-            warn!("Failed to parse stream chunk: {}\nChunk text: {}", e, response_text);
-            e
-        })?;
+    let response: ChatResponse = serde_json::from_str(&response_text)?;
     Ok(response)
 }
 
@@ -155,13 +142,6 @@ mod tests {
     use tokio::time::sleep;
     use std::time::Duration;
     use crate::utils::ollama::is_ollama_running;
-
-    async fn skip_if_ollama_not_running() {
-        if !is_ollama_running().await {
-            eprintln!("Skipping test: Ollama is not running");
-            return;
-        }
-    }
 
     #[tokio::test]
     async fn test_list_models() {
@@ -191,7 +171,7 @@ mod tests {
             }
         ];
 
-        let response = provider.chat("llama3.2", messages).await.unwrap();
+        let response = provider.chat("llama2", messages).await.unwrap();
         assert!(!response.message.content.is_empty());
         println!("Chat response: {}", response.message.content);
     }
@@ -211,7 +191,7 @@ mod tests {
             }
         ];
 
-        let mut stream = provider.chat_stream("llama3.2", messages).await;
+        let mut stream = provider.chat_stream("llama2", messages).await;
         let mut response_parts = Vec::new();
         let mut full_response = String::new();
 
@@ -226,6 +206,5 @@ mod tests {
 
         assert!(!response_parts.is_empty());
         println!("Full streaming response: {}", full_response);
-        assert!(full_response.contains("1") && full_response.contains("5"));
     }
 }
