@@ -91,11 +91,7 @@ async fn test_ollama_chat() {
 
     assert_eq!(response["jsonrpc"], JSONRPC_VERSION);
     assert_eq!(response["id"], 1);
-    assert!(
-        response["result"]["message"]["content"]
-            .as_str()
-            .unwrap()
-            .len()
-            > 0
-    );
+    assert!(response["result"]["message"].is_object());
+    assert!(response["result"]["message"]["content"].is_string());
+    assert!(!response["result"]["message"]["content"].as_str().unwrap().is_empty());
 }
