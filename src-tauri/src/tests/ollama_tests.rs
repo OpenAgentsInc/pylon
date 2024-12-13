@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
     use crate::mcp::providers::ollama::{OllamaProvider, ChatMessage};
-    use tokio_stream::StreamExt;
+    use futures_util::StreamExt;
     use std::time::Duration;
     use tokio::time::sleep;
 
