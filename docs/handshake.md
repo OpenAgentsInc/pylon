@@ -12,10 +12,10 @@ This document outlines the plan for testing the initial WebSocket handshake betw
 - Main App Integration: `src/App.tsx`
 
 ### Onyx (Client)
-- WebSocket Client: `app/services/websocket/WebSocketService.ts`
-- Connection Hook: `app/services/websocket/useWebSocket.ts`
-- Types: `app/services/websocket/types.ts`
-- Status Display: `app/screens/OnyxScreen.tsx` (replace DVMButton with connection status)
+- WebSocket Client: `app/services/websocket/WebSocketService.ts` (exists)
+- Connection Hook: `app/services/websocket/useWebSocket.ts` (exists)
+- Types: `app/services/websocket/types.ts` (exists)
+- Status Display: Replace DVMButton with NexusOverlay in `app/screens/OnyxScreen.tsx`
 
 ## Component Details
 
@@ -44,74 +44,51 @@ export const ConnectionStatus = () => {
 
 ### Onyx Components
 
-1. **WebSocket Service (`app/services/websocket/WebSocketService.ts`)**
-```typescript
-export class WebSocketService {
-  connect(url: string = 'ws://localhost:3000') {
-    // Connect to Pylon
-  }
-}
-```
-
-2. **Connection Hook (`app/services/websocket/useWebSocket.ts`)**
-```typescript
-export const useWebSocket = () => {
-  // Manage connection state
-}
-```
-
-3. **Status Display (`app/screens/OnyxScreen.tsx`)**
+1. **Status Display (`app/screens/OnyxScreen.tsx`)**
 ```typescript
 // Replace:
 {/* <DVMButton /> */}
 
 // With:
-<ConnectionStatus />
+<NexusOverlay 
+  wsState={wsService.state}
+  onRetry={() => wsService.connect()}
+/>
 ```
 
 ## Protocol Flow
 
 1. **Initial Connection**
    - Pylon server listens on `localhost:3000`
-   - Onyx connects via `WebSocketService`
+   - Onyx connects via existing `WebSocketService`
    - Both show connection status
 
 2. **WebSocket Handshake**
    ```typescript
-   // In WebSocketService.ts
-   this.ws = new WebSocket('ws://localhost:3000')
-   this.ws.onopen = () => {
-     this.sendInitialize()
-   }
+   // Already implemented in WebSocketService.ts
+   this.ws = new WebSocket(this.config.url)
    ```
 
 3. **MCP Protocol Initialization**
    ```json
-   // Onyx -> Pylon
+   // Onyx -> Pylon (using existing AuthMessage type)
    {
-     "jsonrpc": "2.0",
-     "method": "initialize",
-     "params": {
-       "capabilities": {
-         "experimental": false,
-         "roots": []
-       }
-     },
-     "id": 1
+     "type": "auth",
+     "id": "random-id",
+     "payload": {
+       "apiKey": "test-key"
+     }
    }
    ```
 
    ```json
-   // Pylon -> Onyx
+   // Pylon -> Onyx (using existing AuthResponse type)
    {
-     "jsonrpc": "2.0",
-     "result": {
-       "capabilities": {
-         "experimental": false,
-         "roots": []
-       }
-     },
-     "id": 1
+     "type": "auth",
+     "id": "random-id",
+     "payload": {
+       "status": "success"
+     }
    }
    ```
 
@@ -129,9 +106,10 @@ export const useWebSocket = () => {
 
 2. **Onyx Updates**
    ```bash
-   # Update existing
-   # - app/screens/OnyxScreen.tsx (replace DVMButton)
-   # - app/services/websocket/* (implement client)
+   # Update OnyxScreen.tsx
+   - Remove DVMButton
+   - Add NexusOverlay with WebSocket state
+   - Connect to Pylon WebSocket
    ```
 
 ## Testing
@@ -154,36 +132,47 @@ export const useWebSocket = () => {
    ```
 
 2. **Onyx Tests**
-   - Location: `app/services/websocket/__tests__/WebSocketService.test.ts`
-   ```typescript
-   describe('WebSocketService', () => {
-     test('connects successfully', () => {
-       // Test connection
-     })
-   })
-   ```
+   - Already has WebSocket tests
+   - Add test for NexusOverlay in OnyxScreen
 
 ## Success Criteria
 
 1. **Visual Indicators**
    - Pylon shows server status in `ConnectionStatus` component
-   - Onyx shows client status in `OnyxScreen`
+   - Onyx shows client status in `NexusOverlay`
    - Both show matching connection IDs
 
 2. **Protocol Success**
-   - MCP initialization logged in dev tools
-   - Capabilities exchanged and displayed
-   - Connection state properly managed in `useWebSocket` hook
+   - Auth message exchange logged in dev tools
+   - Connection state properly managed in existing MobX store
+   - Error states handled by existing error handlers
 
 3. **Error Handling**
-   - Connection failures shown in UI
-   - Automatic reconnection attempts visible
-   - Error states clearly indicated in status components
+   - Using existing reconnection logic in WebSocketService
+   - Error states shown in NexusOverlay
+   - Retry button functional
+
+## Implementation Order
+
+1. **Pylon First**
+   - Implement basic WebSocket server
+   - Add ConnectionStatus component
+   - Test server in isolation
+
+2. **Onyx Second**
+   - Update OnyxScreen to use NexusOverlay
+   - Configure WebSocketService for Pylon
+   - Test connection
+
+3. **Integration**
+   - Test full handshake flow
+   - Verify status displays
+   - Test error scenarios
 
 ## Next Steps
 
 After successful handshake testing:
-1. Implement full MCP protocol in respective service files
+1. Implement full MCP protocol
 2. Add resource provider testing
 3. Implement tool provider testing
 4. Add payment flow testing
