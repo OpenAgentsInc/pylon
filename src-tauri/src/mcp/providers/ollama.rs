@@ -1,8 +1,9 @@
-use std::error::Error;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use futures_util::{Stream, StreamExt};
 use bytes::Bytes;
+use std::pin::Pin;
+use futures_util::stream::{self, BoxStream};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChatMessage {
@@ -53,7 +54,7 @@ impl OllamaProvider {
         }
     }
 
-    pub async fn list_models(&self) -> Result<Vec<ModelInfo>, Box<dyn Error>> {
+    pub async fn list_models(&self) -> Result<Vec<ModelInfo>, Box<dyn std::error::Error>> {
         let response = self.client
             .get(format!("{}/api/tags", self.endpoint))
             .send()
@@ -69,7 +70,7 @@ impl OllamaProvider {
         Ok(models_response.models)
     }
 
-    pub async fn chat(&self, model: &str, messages: Vec<ChatMessage>) -> Result<ChatResponse, Box<dyn Error>> {
+    pub async fn chat(&self, model: &str, messages: Vec<ChatMessage>) -> Result<ChatResponse, Box<dyn std::error::Error>> {
         let request = ChatRequest {
             model: model.to_string(),
             messages,
@@ -92,7 +93,7 @@ impl OllamaProvider {
         Ok(response)
     }
 
-    pub async fn chat_stream(&self, model: &str, messages: Vec<ChatMessage>) -> impl Stream<Item = Result<ChatResponse, Box<dyn Error>>> {
+    pub async fn chat_stream(&self, model: &str, messages: Vec<ChatMessage>) -> BoxStream<'static, Result<ChatResponse, Box<dyn std::error::Error>>> {
         let request = ChatRequest {
             model: model.to_string(),
             messages,
@@ -105,15 +106,15 @@ impl OllamaProvider {
             .await {
                 Ok(r) => r,
                 Err(e) => {
-                    return futures_util::stream::once(async move { 
-                        Err(Box::new(e) as Box<dyn Error>) 
+                    return stream::once(async move { 
+                        Err(Box::new(e) as Box<dyn std::error::Error>) 
                     }).boxed();
                 }
             };
 
         if !response.status().is_success() {
             let error = response.text().await.unwrap_or_else(|e| e.to_string());
-            return futures_util::stream::once(async move {
+            return stream::once(async move {
                 Err(format!("Chat stream failed: {}", error).into())
             }).boxed();
         }
@@ -122,11 +123,12 @@ impl OllamaProvider {
 
         response
             .bytes_stream()
+            .map(move |result| {
+                result
+                    .map_err(|e| Box::new(e) as Box<dyn std::error::Error>)
+                    .and_then(|bytes| parse_stream_chunk(bytes))
+            })
             .filter_map(move |result| {
-                let result = result
-                    .map_err(|e| Box::new(e) as Box<dyn Error>)
-                    .and_then(|bytes| parse_stream_chunk(bytes));
-
                 match &result {
                     Ok(response) => {
                         if response.done {
@@ -139,7 +141,7 @@ impl OllamaProvider {
                     Err(_) => Some(result),
                 }
             })
-            .chain(futures_util::stream::once(async move {
+            .chain(stream::once(async move {
                 Ok(last_response.unwrap_or(ChatResponse {
                     message: ChatMessage {
                         role: "assistant".to_string(),
@@ -154,7 +156,7 @@ impl OllamaProvider {
     }
 }
 
-fn parse_stream_chunk(bytes: Bytes) -> Result<ChatResponse, Box<dyn Error>> {
+fn parse_stream_chunk(bytes: Bytes) -> Result<ChatResponse, Box<dyn std::error::Error>> {
     let response_text = String::from_utf8(bytes.to_vec())?;
     let response: ChatResponse = serde_json::from_str(&response_text)?;
     Ok(response)
@@ -201,7 +203,7 @@ mod tests {
             }
         ];
 
-        let response = provider.chat("llama2", messages).await.unwrap();
+        let response = provider.chat("llama3.2", messages).await.unwrap();
         assert!(!response.message.content.is_empty());
         println!("Chat response: {}", response.message.content);
     }
@@ -221,7 +223,7 @@ mod tests {
             }
         ];
 
-        let mut stream = provider.chat_stream("llama2", messages).await;
+        let mut stream = provider.chat_stream("llama3.2", messages).await;
         let mut response_parts = Vec::new();
         let mut full_response = String::new();
 
