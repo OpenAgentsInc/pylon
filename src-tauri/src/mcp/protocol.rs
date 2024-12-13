@@ -1,11 +1,15 @@
 use crate::mcp::types::*;
+use crate::mcp::providers::{filesystem::FileSystemProvider, ResourceProvider};
 use log::{error, info};
 use serde_json::Value;
 use std::error::Error;
+use std::path::PathBuf;
+use std::sync::Arc;
 
 pub struct MCPProtocol {
     server_info: Implementation,
     server_capabilities: ServerCapabilities,
+    fs_provider: Arc<FileSystemProvider>,
 }
 
 impl Default for MCPProtocol {
@@ -27,6 +31,7 @@ impl MCPProtocol {
                 prompts: Some(PromptsCapability { list_changed: true }),
                 ..Default::default()
             },
+            fs_provider: Arc::new(FileSystemProvider::new(PathBuf::from("/Users/christopherdavid/code/pylon"))),
         }
     }
 
@@ -35,6 +40,10 @@ impl MCPProtocol {
 
         match request.method.as_str() {
             "initialize" => self.handle_initialize(&request),
+            "resource/list" => self.handle_list_resources(&request),
+            "resource/read" => self.handle_read_resource(&request),
+            "resource/watch" => self.handle_watch_resource(&request),
+            "resource/unwatch" => self.handle_unwatch_resource(&request),
             _ => {
                 error!("Unknown method: {}", request.method);
                 Ok(self.create_error_response(request.id, -32601, "Method not found".to_string()))
@@ -72,6 +81,107 @@ impl MCPProtocol {
         Ok(serde_json::to_string(&response)?)
     }
 
+    async fn handle_list_resources(&self, request: &JsonRpcRequest) -> Result<String, Box<dyn Error>> {
+        #[derive(serde::Deserialize)]
+        struct ListParams {
+            path: Option<String>,
+        }
+
+        let params: ListParams = serde_json::from_value(request.params.clone())?;
+        let path = params.path.unwrap_or_else(|| ".".to_string());
+
+        match self.fs_provider.list(&path).await {
+            Ok(resources) => {
+                let response = serde_json::json!({
+                    "jsonrpc": JSONRPC_VERSION,
+                    "id": request.id,
+                    "result": resources
+                });
+                Ok(serde_json::to_string(&response)?)
+            }
+            Err(e) => Ok(self.create_error_response(
+                request.id,
+                -32000,
+                format!("Error listing resources: {}", e),
+            )),
+        }
+    }
+
+    async fn handle_read_resource(&self, request: &JsonRpcRequest) -> Result<String, Box<dyn Error>> {
+        #[derive(serde::Deserialize)]
+        struct ReadParams {
+            path: String,
+        }
+
+        let params: ReadParams = serde_json::from_value(request.params.clone())?;
+
+        match self.fs_provider.read(&params.path).await {
+            Ok(contents) => {
+                let response = serde_json::json!({
+                    "jsonrpc": JSONRPC_VERSION,
+                    "id": request.id,
+                    "result": contents
+                });
+                Ok(serde_json::to_string(&response)?)
+            }
+            Err(e) => Ok(self.create_error_response(
+                request.id,
+                -32000,
+                format!("Error reading resource: {}", e),
+            )),
+        }
+    }
+
+    async fn handle_watch_resource(&self, request: &JsonRpcRequest) -> Result<String, Box<dyn Error>> {
+        #[derive(serde::Deserialize)]
+        struct WatchParams {
+            path: String,
+        }
+
+        let params: WatchParams = serde_json::from_value(request.params.clone())?;
+
+        match self.fs_provider.watch(&params.path).await {
+            Ok(()) => {
+                let response = serde_json::json!({
+                    "jsonrpc": JSONRPC_VERSION,
+                    "id": request.id,
+                    "result": true
+                });
+                Ok(serde_json::to_string(&response)?)
+            }
+            Err(e) => Ok(self.create_error_response(
+                request.id,
+                -32000,
+                format!("Error watching resource: {}", e),
+            )),
+        }
+    }
+
+    async fn handle_unwatch_resource(&self, request: &JsonRpcRequest) -> Result<String, Box<dyn Error>> {
+        #[derive(serde::Deserialize)]
+        struct UnwatchParams {
+            path: String,
+        }
+
+        let params: UnwatchParams = serde_json::from_value(request.params.clone())?;
+
+        match self.fs_provider.unwatch(&params.path).await {
+            Ok(()) => {
+                let response = serde_json::json!({
+                    "jsonrpc": JSONRPC_VERSION,
+                    "id": request.id,
+                    "result": true
+                });
+                Ok(serde_json::to_string(&response)?)
+            }
+            Err(e) => Ok(self.create_error_response(
+                request.id,
+                -32000,
+                format!("Error unwatching resource: {}", e),
+            )),
+        }
+    }
+
     fn create_error_response(&self, id: Value, code: i32, message: String) -> String {
         let error = serde_json::json!({
             "jsonrpc": JSONRPC_VERSION,
@@ -85,7 +195,7 @@ impl MCPProtocol {
 
         serde_json::to_string(&error).unwrap_or_else(|e| {
             format!(
-                r#"{{"jsonrpc":"2.0","id":null,"error":{{"code":-32603,"message":"Error creating error response: {}"}}"#,
+                r#"{{"jsonrpc":"2.0","id":null,"error":{{"code":-32603,"message":"Error creating error response: {}"}}}"#,
                 e
             )
         })
