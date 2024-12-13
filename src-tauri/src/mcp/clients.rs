@@ -4,25 +4,12 @@ use tokio::sync::RwLock;
 use serde::{Serialize, Deserialize};
 use chrono::{DateTime, Utc};
 
+use crate::mcp::types::{ClientCapabilities, RootsCapability};
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ClientInfo {
     pub name: String,
     pub version: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ClientCapabilities {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub experimental: Option<HashMap<String, HashMap<String, serde_json::Value>>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub roots: Option<RootsCapability>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub sampling: Option<HashMap<String, serde_json::Value>>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RootsCapability {
-    pub list_changed: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -70,16 +57,6 @@ impl ClientManager {
 
     pub async fn get_clients(&self) -> Vec<ConnectedClient> {
         self.clients.read().await.values().cloned().collect()
-    }
-}
-
-impl Default for ClientCapabilities {
-    fn default() -> Self {
-        Self {
-            experimental: None,
-            roots: None,
-            sampling: None,
-        }
     }
 }
 
