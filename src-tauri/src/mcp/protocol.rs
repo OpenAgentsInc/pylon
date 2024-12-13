@@ -6,7 +6,6 @@ use serde_json::Value;
 use std::error::Error;
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::collections::HashMap;
 
 pub struct MCPProtocol {
     server_info: Implementation,
@@ -76,13 +75,13 @@ impl MCPProtocol {
         };
 
         let capabilities = ClientCapabilities {
-            experimental: params.capabilities.experimental.unwrap_or_default(),
+            experimental: Some(params.capabilities.experimental.unwrap_or_default()),
             roots: Some(RootsCapability {
                 list_changed: params.capabilities.roots
                     .map(|r| r.list_changed)
                     .unwrap_or_default(),
             }),
-            sampling: params.capabilities.sampling.unwrap_or_default(),
+            sampling: Some(params.capabilities.sampling.unwrap_or_default()),
         };
 
         self.client_manager.add_client(
@@ -228,7 +227,7 @@ impl MCPProtocol {
 
         serde_json::to_string(&error).unwrap_or_else(|e| {
             format!(
-                r#"{{"jsonrpc":"2.0","id":null,"error":{{"code":-32603,"message":"Error creating error response: {}"}}}}}"#,
+                r#"{{"jsonrpc":"2.0","id":null,"error":{{"code":-32603,"message":"Error creating error response: {}"}}"}}"#,
                 e
             )
         })
