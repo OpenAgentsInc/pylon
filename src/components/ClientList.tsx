@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react"
 import { invoke } from "@tauri-apps/api/core"
 import styles from "./ClientList.module.scss"
+import Card from "./Card"
 
 interface Client {
   id: string;
@@ -44,33 +45,47 @@ const ClientList: React.FC = () => {
 
   return (
     <div className={styles.clientList}>
-      <h3>Connected Clients ({clients.length})</h3>
+      <h3 className={styles.title}>Connected Clients ({clients.length})</h3>
       {clients.length === 0 ? (
-        <p className={styles.noClients}>No clients connected</p>
+        <Card>
+          <p className={styles.noClients}>No clients connected</p>
+        </Card>
       ) : (
-        <div className={styles.clients}>
+        <div className={styles.grid}>
           {clients.map((client) => (
-            <div key={client.id} className={styles.client}>
-              <div className={styles.header}>
-                <div className={styles.name}>
-                  {client.clientInfo.name} v{client.clientInfo.version}
+            <Card key={client.id}>
+              <div className={styles.client}>
+                <div className={styles.header}>
+                  <div className={styles.name}>
+                    {client.clientInfo.name} <span className={styles.version}>v{client.clientInfo.version}</span>
+                  </div>
+                  <div className={styles.id}>{client.id}</div>
                 </div>
-                <div className={styles.id}>{client.id}</div>
+                <div className={styles.details}>
+                  <div className={styles.time}>
+                    Connected: {new Date(client.connectedAt).toLocaleString()}
+                  </div>
+                  <div className={styles.capabilities}>
+                    <div className={styles.capability}>
+                      <span className={styles.label}>Experimental:</span>
+                      <span className={styles.value}>{Object.keys(client.capabilities.experimental).length} features</span>
+                    </div>
+                    <div className={styles.capability}>
+                      <span className={styles.label}>Roots:</span>
+                      <span className={styles.value}>{client.capabilities.roots.list_changed ? 'Enabled' : 'Disabled'}</span>
+                    </div>
+                    <div className={styles.capability}>
+                      <span className={styles.label}>Sampling:</span>
+                      <span className={styles.value}>{Object.keys(client.capabilities.sampling).length} options</span>
+                    </div>
+                  </div>
+                  <div className={styles.lastMessage}>
+                    <span className={styles.label}>Last message:</span>
+                    <span className={styles.value}>{client.lastMessage}</span>
+                  </div>
+                </div>
               </div>
-              <div className={styles.details}>
-                <div className={styles.time}>
-                  Connected: {new Date(client.connectedAt).toLocaleString()}
-                </div>
-                <div className={styles.capabilities}>
-                  <div>Experimental: {Object.keys(client.capabilities.experimental).length} features</div>
-                  <div>Roots: {client.capabilities.roots.list_changed ? 'Enabled' : 'Disabled'}</div>
-                  <div>Sampling: {Object.keys(client.capabilities.sampling).length} options</div>
-                </div>
-                <div className={styles.lastMessage}>
-                  Last message: {client.lastMessage}
-                </div>
-              </div>
-            </div>
+            </Card>
           ))}
         </div>
       )}
