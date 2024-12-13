@@ -41,25 +41,42 @@ impl OllamaProvider {
     pub async fn chat(&self, model: &str, messages: Vec<ChatMessage>) -> Result<ChatResponse, DynError> {
         let mut stream = self.chat_stream(model, messages).await;
         let mut final_content = String::new();
-        let mut final_response = None;
+        let mut last_response: Option<ChatResponse> = None;
 
-        while let Some(Ok(response)) = stream.next().await {
-            final_content.push_str(&response.message.content);
-            if response.done {
-                final_response = Some(ChatResponse {
-                    message: ChatMessage {
-                        role: "assistant".to_string(),
-                        content: final_content.clone(),
-                    },
-                    done: true,
-                    model: response.model,
-                    created_at: response.created_at,
-                });
-                break;
+        while let Some(result) = stream.next().await {
+            match result {
+                Ok(response) => {
+                    final_content.push_str(&response.message.content);
+                    last_response = Some(response);
+                    
+                    if response.done {
+                        return Ok(ChatResponse {
+                            message: ChatMessage {
+                                role: "assistant".to_string(),
+                                content: final_content,
+                            },
+                            done: true,
+                            model: response.model,
+                            created_at: response.created_at,
+                        });
+                    }
+                },
+                Err(e) => return Err(e),
             }
         }
 
-        final_response.ok_or_else(|| "No complete response received".into())
+        match last_response {
+            Some(last) => Ok(ChatResponse {
+                message: ChatMessage {
+                    role: "assistant".to_string(),
+                    content: final_content,
+                },
+                done: true,
+                model: last.model,
+                created_at: last.created_at,
+            }),
+            None => Err("No response received from stream".into())
+        }
     }
 
     pub async fn chat_stream(&self, model: &str, messages: Vec<ChatMessage>) -> BoxStream<'static, Result<ChatResponse, DynError>> {
@@ -104,7 +121,6 @@ impl OllamaProvider {
 
 fn parse_stream_chunk(bytes: Bytes) -> Result<ChatResponse, DynError> {
     let response_text = String::from_utf8(bytes.to_vec())?;
-    println!("Raw stream chunk: {}", response_text);
     
     let response: OllamaResponse = serde_json::from_str(&response_text)?;
     Ok(ChatResponse {
