@@ -6,6 +6,7 @@ use futures_util::stream::{self, BoxStream};
 use std::error::Error as StdError;
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use pylon_lib::utils::ollama::is_ollama_running;
 
 type DynError = Box<dyn StdError + Send + Sync + 'static>;
 
@@ -188,7 +189,6 @@ mod tests {
     use super::*;
     use tokio::time::sleep;
     use std::time::Duration;
-    use crate::utils::ollama::is_ollama_running;
 
     #[tokio::test]
     async fn test_list_models() {
