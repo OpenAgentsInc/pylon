@@ -4,6 +4,7 @@ use actix_ws::Message;
 use futures_util::StreamExt as _;
 use log::{error, info};
 use tokio::sync::oneshot;
+use tokio::net::TcpListener;
 
 use super::protocol::MCPProtocol;
 
@@ -20,37 +21,46 @@ impl MCPServer {
 
     pub async fn start(&self, host: &str, port: u16) -> std::io::Result<()> {
         let protocol = self.protocol.clone();
-        let (tx, rx) = oneshot::channel();
 
         info!("Starting MCP server on {}:{}", host, port);
+
+        // First check if we can bind to the port
+        let addr = format!("{}:{}", host, port);
+        let listener = TcpListener::bind(&addr).await?;
+        drop(listener); // Release the port
 
         let server = HttpServer::new(move || {
             App::new()
                 .app_data(web::Data::new(protocol.clone()))
                 .route("/mcp", web::get().to(handle_connection))
         })
-        .bind((host, port))?
         .workers(4) // Reduce number of workers
-        .run();
+        .bind(&addr)?;
 
-        // Get the server handle
-        let handle = server.handle();
+        // Create a oneshot channel for server startup signal
+        let (tx, rx) = oneshot::channel();
+        let server = server.run();
 
-        // Spawn the server in the background
-        tokio::spawn(server);
+        // Clone tx for use in the spawn
+        let tx = tx.clone();
 
-        // Wait a moment for the server to start
+        // Spawn the server
+        tokio::spawn(async move {
+            // Signal that server is starting
+            let _ = tx.send(());
+            server.await
+        });
+
+        // Wait for server to start
+        rx.await.map_err(|e| std::io::Error::new(
+            std::io::ErrorKind::Other,
+            format!("Failed to receive server start signal: {}", e)
+        ))?;
+
+        // Add a small delay to ensure server is fully initialized
         tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
 
-        // Check if server is running
-        if handle.is_running() {
-            Ok(())
-        } else {
-            Err(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "Server failed to start",
-            ))
-        }
+        Ok(())
     }
 }
 
