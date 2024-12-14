@@ -35,19 +35,19 @@ fn main() {
                         info!("MCP server started successfully on port {}", port);
                         server_started = true;
                         final_port = Some(port);
+                        // Send confirmation immediately after successful start
+                        tx.send(Some(port)).unwrap_or_default();
                         break;
                     },
                     Err(e) => {
                         log::error!("Failed to start MCP server on port {}: {}", port, e);
                         if port == 8082 {
                             log::error!("Failed to start MCP server on any port");
+                            tx.send(None).unwrap_or_default();
                         }
                     }
                 }
             }
-
-            // Signal whether server started successfully
-            tx.send(final_port).unwrap_or_default();
             
             // Keep the system running if server started
             if server_started {
@@ -59,9 +59,9 @@ fn main() {
     });
 
     // Wait for server to start with a timeout
-    match rx.recv_timeout(Duration::from_secs(5)) {
+    match rx.recv_timeout(Duration::from_secs(10)) {
         Ok(Some(port)) => {
-            info!("Server started successfully on port {}", port);
+            info!("Server confirmed running on port {}", port);
             
             // Run Tauri application only after server is confirmed running
             tauri::Builder::default()
