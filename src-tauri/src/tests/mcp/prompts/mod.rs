@@ -41,11 +41,11 @@ mod mock {
                 "test_prompt".to_string(),
                 vec![PromptMessage {
                     role: Role::User,
-                    content: MessageContent::Text(TextContent {
+                    content: MessageContent::Text {
                         text: "Test message".to_string(),
                         content_type: "text".to_string(),
                         annotations: None,
-                    }),
+                    },
                 }],
             );
 
@@ -109,9 +109,9 @@ async fn test_get_prompt() {
     assert_eq!(message.role, Role::User);
 
     match &message.content {
-        MessageContent::Text(text) => {
-            assert_eq!(text.text, "Test message");
-            assert_eq!(text.content_type, "text");
+        MessageContent::Text { text, content_type, .. } => {
+            assert_eq!(text, "Test message");
+            assert_eq!(content_type, "text");
         }
         _ => panic!("Expected TextContent"),
     }
@@ -134,10 +134,9 @@ arguments:
     required: true
 messages:
   - role: user
-    content:
-      type: text
-      content_type: text
-      text: "Hello {name}!"
+    type: text
+    text: "Hello {name}!"
+    content_type: text
 "#,
     )
     .await
@@ -155,8 +154,8 @@ messages:
 
     assert_eq!(messages.len(), 1);
     match &messages[0].content {
-        MessageContent::Text(text) => {
-            assert_eq!(text.text, "Hello world!");
+        MessageContent::Text { text, .. } => {
+            assert_eq!(text, "Hello world!");
         }
         _ => panic!("Expected TextContent"),
     }
@@ -186,14 +185,13 @@ arguments:
     required: true
 messages:
   - role: user
-    content:
-      type: resource
-      r#type: resource
-      resource:
-        type: Text
-        uri: "{{resource_path}}"
-        text: ""
-        mime_type: text/plain
+    type: resource
+    r#type: resource
+    resource:
+      type: Text
+      uri: "{{resource_path}}"
+      text: ""
+      mime_type: text/plain
 "#
         ),
     )
@@ -210,7 +208,7 @@ messages:
     assert_eq!(messages.len(), 1);
 
     match &messages[0].content {
-        MessageContent::Resource(resource) => match &resource.resource {
+        MessageContent::Resource { resource, .. } => match resource {
             ResourceContents::Text(text) => {
                 assert_eq!(text.text, "Test resource content");
             }
