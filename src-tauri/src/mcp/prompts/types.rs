@@ -123,4 +123,61 @@ mod tests {
             "Hi world!"
         );
     }
+
+    #[test]
+    fn test_message_content_serialization() {
+        let text_content = MessageContent::Text(TextContent {
+            text: "Hello".to_string(),
+            content_type: "text".to_string(),
+            annotations: None,
+        });
+
+        let json = serde_json::to_string(&text_content).unwrap();
+        assert_eq!(
+            json,
+            r#"{"type":"text","text":"Hello","content_type":"text"}"#
+        );
+
+        let resource_content = MessageContent::Resource(EmbeddedResource {
+            r#type: "resource".to_string(),
+            resource: ResourceContents::Text(crate::mcp::types::TextResourceContents {
+                uri: "test.txt".to_string(),
+                mime_type: Some("text/plain".to_string()),
+                text: "Hello".to_string(),
+            }),
+            annotations: None,
+        });
+
+        let json = serde_json::to_string(&resource_content).unwrap();
+        assert!(json.contains(r#""type":"resource""#));
+        assert!(json.contains(r#""uri":"test.txt""#));
+    }
+
+    #[test]
+    fn test_yaml_serialization() {
+        let prompt = Prompt {
+            name: "test".to_string(),
+            description: Some("Test prompt".to_string()),
+            arguments: vec![PromptArgument {
+                name: "arg1".to_string(),
+                description: Some("Test arg".to_string()),
+                required: true,
+            }],
+            messages: vec![PromptMessage {
+                role: Role::User,
+                content: MessageContent::Text(TextContent {
+                    text: "Hello {arg1}!".to_string(),
+                    content_type: "text".to_string(),
+                    annotations: None,
+                }),
+            }],
+        };
+
+        let yaml = serde_yaml::to_string(&prompt).unwrap();
+        let parsed: Prompt = serde_yaml::from_str(&yaml).unwrap();
+        assert_eq!(parsed.name, prompt.name);
+        assert_eq!(parsed.description, prompt.description);
+        assert_eq!(parsed.arguments.len(), prompt.arguments.len());
+        assert_eq!(parsed.messages.len(), prompt.messages.len());
+    }
 }
