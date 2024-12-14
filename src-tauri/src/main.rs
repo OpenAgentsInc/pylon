@@ -3,7 +3,7 @@ use std::thread;
 use std::sync::Arc;
 use std::sync::mpsc;
 use std::time::Duration;
-use pylon_lib::mcp::{MCPServer, protocol::MCPProtocol};
+use pylon_lib::mcp::MCPServer;
 
 mod commands;
 
@@ -27,14 +27,12 @@ fn main() {
         system.block_on(async {
             // Try ports 8080, 8081, 8082 in sequence
             let mut server_started = false;
-            let mut final_port = None;
             
             for port in 8080..8083 {
                 match server_clone.start("0.0.0.0", port).await {
                     Ok(_) => {
                         info!("MCP server started successfully on port {}", port);
                         server_started = true;
-                        final_port = Some(port);
                         // Send confirmation immediately after successful start
                         tx.send(Some(port)).unwrap_or_default();
                         break;
