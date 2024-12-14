@@ -3,6 +3,7 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use serde::{Serialize, Deserialize};
 use chrono::{DateTime, Utc};
+use log::{info, debug};
 
 use crate::mcp::types::ClientCapabilities;
 
@@ -36,27 +37,39 @@ impl ClientManager {
     pub async fn add_client(&self, id: String, info: ClientInfo, capabilities: ClientCapabilities) {
         let client = ConnectedClient {
             id: id.clone(),
-            client_info: info,
+            client_info: info.clone(),
             connected_at: Utc::now(),
             last_message: "Connected".to_string(),
             capabilities,
         };
 
+        info!("Adding client {} ({} v{})", id, info.name, info.version);
         self.clients.write().await.insert(id, client);
+        debug!("Current clients: {:?}", self.clients.read().await.keys().collect::<Vec<_>>());
     }
 
     pub async fn remove_client(&self, id: &str) {
+        info!("Removing client {}", id);
         self.clients.write().await.remove(id);
+        debug!("Current clients: {:?}", self.clients.read().await.keys().collect::<Vec<_>>());
+    }
+
+    pub async fn clear_clients(&self) {
+        info!("Clearing all clients");
+        self.clients.write().await.clear();
     }
 
     pub async fn update_last_message(&self, id: &str, message: String) {
         if let Some(client) = self.clients.write().await.get_mut(id) {
+            debug!("Updating last message for client {}: {}", id, message);
             client.last_message = message;
         }
     }
 
     pub async fn get_clients(&self) -> Vec<ConnectedClient> {
-        self.clients.read().await.values().cloned().collect()
+        let clients = self.clients.read().await.values().cloned().collect::<Vec<_>>();
+        debug!("Getting clients: {} connected", clients.len());
+        clients
     }
 }
 
@@ -74,17 +87,21 @@ mod tests {
             name: "test".to_string(),
             version: "1.0".to_string(),
         };
-        let capabilities = ClientCapabilities {
+        
+        // Create a function to generate fresh capabilities for each test
+        let make_capabilities = || ClientCapabilities {
             experimental: None,
             roots: None,
             sampling: None,
             ollama: Some(OllamaCapability {
-                available_models: vec!["llama3.2".to_string()],
+                available_models: vec!["llama2".to_string()],
                 endpoint: "http://localhost:11434".to_string(),
                 streaming: true,
             }),
         };
-        manager.add_client("test-id".to_string(), info.clone(), capabilities).await;
+
+        // Use fresh capabilities for each call
+        manager.add_client("test-id".to_string(), info.clone(), make_capabilities()).await;
 
         // Check client was added
         let clients = manager.get_clients().await;
@@ -101,5 +118,12 @@ mod tests {
         manager.remove_client("test-id").await;
         let clients = manager.get_clients().await;
         assert_eq!(clients.len(), 0);
+
+        // Test clear_clients
+        manager.add_client("test-id1".to_string(), info.clone(), make_capabilities()).await;
+        manager.add_client("test-id2".to_string(), info.clone(), make_capabilities()).await;
+        assert_eq!(manager.get_clients().await.len(), 2);
+        manager.clear_clients().await;
+        assert_eq!(manager.get_clients().await.len(), 0);
     }
 }
