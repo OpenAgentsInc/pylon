@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use async_trait::async_trait;
 
-use super::types::{Prompt, PromptMessage, Result};
+use super::types::{Prompt, PromptMessage, Result, Error};
 
 /// Provider trait for prompt management
 #[async_trait]
@@ -19,7 +19,7 @@ pub trait PromptProvider {
 /// Default implementations for common provider functionality
 pub(crate) mod utils {
     use super::*;
-    use crate::mcp::prompts::types::{Error, MessageContent, substitute_template};
+    use crate::mcp::prompts::types::{MessageContent, substitute_template};
     
     /// Process a message template with the given arguments
     pub fn process_message_template(
@@ -59,15 +59,15 @@ pub(crate) mod utils {
         prompt: &Prompt,
         arguments: Option<&HashMap<String, String>>,
     ) -> Result<Vec<PromptMessage>> {
-        let arguments = arguments.unwrap_or(&HashMap::new());
+        let arguments = arguments.cloned().unwrap_or_default();
         
         // First validate required arguments
-        validate_required_arguments(prompt, arguments)?;
+        validate_required_arguments(prompt, &arguments)?;
         
         // Then process each message
         let mut processed_messages = Vec::new();
         for message in &prompt.messages {
-            let processed = process_message_template(message, arguments)?;
+            let processed = process_message_template(message, &arguments)?;
             processed_messages.push(processed);
         }
         
@@ -78,7 +78,8 @@ pub(crate) mod utils {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::mcp::protocol::types::{Role, TextContent};
+    use crate::mcp::types::{Role, TextContent};
+    use crate::mcp::prompts::MessageContent;
     
     #[test]
     fn test_validate_required_arguments() {
@@ -133,7 +134,7 @@ mod tests {
                     role: Role::User,
                     content: MessageContent::Text(TextContent {
                         text: "Hello {name}!".to_string(),
-                        r#type: "text".to_string(),
+                        content_type: "text".to_string(),
                         annotations: None,
                     }),
                 },
