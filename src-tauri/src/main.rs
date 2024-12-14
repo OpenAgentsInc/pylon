@@ -2,6 +2,7 @@ use log::info;
 use std::thread;
 use std::sync::Arc;
 use std::sync::mpsc;
+use std::time::Duration;
 use pylon_lib::mcp::MCPServer;
 
 mod commands;
@@ -26,23 +27,27 @@ fn main() {
         system.block_on(async {
             // Try ports 8080, 8081, 8082 in sequence
             let mut server_started = false;
+            let mut final_port = None;
+            
             for port in 8080..8083 {
                 match server_clone.start("0.0.0.0", port).await {
                     Ok(_) => {
                         info!("MCP server started successfully on port {}", port);
                         server_started = true;
-                        tx.send(Ok(port)).unwrap_or_default();
+                        final_port = Some(port);
                         break;
                     },
                     Err(e) => {
                         log::error!("Failed to start MCP server on port {}: {}", port, e);
                         if port == 8082 {
                             log::error!("Failed to start MCP server on any port");
-                            tx.send(Err("Failed to start server on any port".to_string())).unwrap_or_default();
                         }
                     }
                 }
             }
+
+            // Signal whether server started successfully
+            tx.send(final_port).unwrap_or_default();
             
             // Keep the system running if server started
             if server_started {
@@ -53,26 +58,28 @@ fn main() {
         });
     });
 
-    // Wait for server to start or fail
-    match rx.recv() {
-        Ok(Ok(port)) => {
+    // Wait for server to start with a timeout
+    match rx.recv_timeout(Duration::from_secs(5)) {
+        Ok(Some(port)) => {
             info!("Server started successfully on port {}", port);
+            
+            // Run Tauri application only after server is confirmed running
+            tauri::Builder::default()
+                .plugin(tauri_plugin_shell::init())
+                .manage(protocol.clone())
+                .invoke_handler(tauri::generate_handler![
+                    commands::get_connected_clients
+                ])
+                .run(tauri::generate_context!())
+                .expect("error while running tauri application");
         },
-        Ok(Err(e)) => {
-            log::error!("Server failed to start: {}", e);
+        Ok(None) => {
+            log::error!("Failed to start server on any port");
+            std::process::exit(1);
         },
-        Err(e) => {
-            log::error!("Failed to receive server status: {}", e);
+        Err(_) => {
+            log::error!("Timeout waiting for server to start");
+            std::process::exit(1);
         }
     }
-
-    // Run Tauri application
-    tauri::Builder::default()
-        .plugin(tauri_plugin_shell::init())
-        .manage(protocol.clone()) // Clone to ensure it's managed even if server fails
-        .invoke_handler(tauri::generate_handler![
-            commands::get_connected_clients
-        ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
 }
