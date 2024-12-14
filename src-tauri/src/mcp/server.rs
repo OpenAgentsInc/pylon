@@ -23,6 +23,9 @@ impl MCPServer {
 
         info!("Starting MCP server on {}:{}", host, port);
 
+        // Clear any stale clients on startup
+        protocol.get_client_manager().clear_clients().await;
+
         // First check if we can bind to the port
         let addr = format!("{}:{}", host, port);
         let listener = TcpListener::bind(&addr).await?;
@@ -67,6 +70,7 @@ pub async fn handle_connection(
     let client_id_clone = client_id.clone();
     
     actix_web::rt::spawn(async move {
+        let mut closed = false;
         while let Some(Ok(msg)) = msg_stream.next().await {
             match msg {
                 Message::Text(text) => {
@@ -97,6 +101,7 @@ pub async fn handle_connection(
                         client_id,
                         reason
                     );
+                    closed = true;
                     break;
                 }
                 Message::Ping(bytes) => {
@@ -110,11 +115,15 @@ pub async fn handle_connection(
         }
 
         // Clean up when client disconnects
-        protocol_clone.get_client_manager().remove_client(&client_id_clone).await;
-        
-        if let Err(e) = session.close(None).await {
-            error!("Error closing session for {}: {}", client_id, e);
+        if !closed {
+            info!("Client {} connection lost", client_id);
+            if let Err(e) = session.close(None).await {
+                error!("Error closing session for {}: {}", client_id, e);
+            }
         }
+        
+        info!("Removing client {}", client_id);
+        protocol_clone.get_client_manager().remove_client(&client_id_clone).await;
     });
 
     Ok(response)
