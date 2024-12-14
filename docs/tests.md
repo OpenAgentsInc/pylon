@@ -2,31 +2,18 @@
 
 ## Currently passing tests
 
-running 22 tests
-test mcp::prompts::types::tests::test_message_content_serialization ... ok
-test mcp::prompts::types::tests::test_template_substitution ... ok
-test mcp::prompts::provider::tests::test_validate_required_arguments ... ok
-test mcp::prompts::provider::tests::test_process_prompt_messages ... ok
+test mcp::capabilities::tests::test_capability_negotiation_with_experimental ... ok
+test mcp::capabilities::tests::test_capability_negotiation_with_roots ... ok
 test mcp::protocol::tests::test_unknown_method ... ok
-test mcp::prompts::types::tests::test_yaml_serialization ... ok
-test tests::mcp::prompts::test_list_prompts ... ok
-test tests::mcp::prompts::test_get_prompt ... ok
-test mcp::clients::tests::test_client_management ... ok
-test tests::mcp::prompts::test_filesystem_provider ... ok
-test tests::mcp::prompts::test_prompt_with_resource ... ok
 test mcp::protocol::tests::test_initialize_request ... ok
+test mcp::capabilities::tests::test_capability_update ... ok
+test mcp::capabilities::tests::test_client_registration ... ok
+test mcp::capabilities::tests::test_client_removal ... ok
 test tests::mcp::server_tests::tests::test_websocket_connection ... ok
-test mcp::providers::ollama::tests::test_chat_stream ... ok
-test tests::ollama_tests::tests::test_ollama_error_handling ... ok
-test mcp::providers::ollama::tests::test_list_models ... ok
-test mcp::providers::ollama::tests::test_chat ... ok
-test tests::ollama_tests::tests::test_ollama_streaming ... ok
-test mcp::protocol::tests::test_ollama_chat ... ok
-test tests::ollama_tests::tests::test_ollama_integration ... ok
 test tests::mcp::server_tests::tests::test_websocket_echo ... ok
 test tests::mcp::server_tests::tests::test_multiple_clients ... ok
-
-test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+test mcp::prompts::provider::tests::test_validate_required_arguments ... ok
+test mcp::prompts::provider::tests::test_process_prompt_messages ... ok
 
 ## Test Structure
 
@@ -34,82 +21,100 @@ test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fin
 pylon/
 ├── src-tauri/
 │   ├── src/
+│   │   ├── mcp/
+│   │   │   ├── prompts/
+│   │   │   │   ├── provider.rs          # Prompt provider tests
+│   │   │   │   │   ├── test_validate_required_arguments
+│   │   │   │   │   └── test_process_prompt_messages
+│   │   │   │   └── providers/
+│   │   │   │       └── filesystem.rs    # Filesystem provider tests
+│   │   │   ├── capabilities/
+│   │   │   │   └── tests/              # Capability system tests
+│   │   │   │       ├── test_capability_negotiation_with_experimental
+│   │   │   │       ├── test_capability_negotiation_with_roots
+│   │   │   │       ├── test_capability_update
+│   │   │   │       ├── test_client_registration
+│   │   │   │       └── test_client_removal
+│   │   │   └── protocol/
+│   │   │       └── tests/              # Protocol handling tests
+│   │   │           ├── test_unknown_method
+│   │   │           └── test_initialize_request
 │   │   └── tests/
-│   │       ├── mod.rs                    # Test module configuration
+│   │       ├── mod.rs                  # Test module configuration
 │   │       ├── mcp/
-│   │       │   ├── mod.rs                # MCP test module
-│   │       │   ├── server_tests.rs       # Server initialization and core functionality
-│   │       │   ├── client_tests.rs       # Client connection and management
-│   │       │   ├── protocol_tests.rs     # Protocol message handling
-│   │       │   ├── resource_tests.rs     # Resource provider functionality
-│   │       │   ├── tool_tests.rs         # Tool provider functionality
-│   │       │   └── integration_tests.rs  # MCP integration scenarios
+│   │       │   ├── mod.rs              # MCP test module
+│   │       │   ├── server_tests.rs     # Server tests
+│   │       │   │   ├── test_websocket_connection
+│   │       │   │   ├── test_websocket_echo
+│   │       │   │   └── test_multiple_clients
+│   │       │   ├── client_tests.rs     # Client connection tests
+│   │       │   ├── protocol_tests.rs   # Protocol message tests
+│   │       │   ├── resource_tests.rs   # Resource provider tests
+│   │       │   ├── tool_tests.rs       # Tool provider tests
+│   │       │   └── integration_tests.rs # MCP integration tests
 │   │       ├── nostr/
-│   │       │   ├── mod.rs                # Nostr test module
-│   │       │   ├── event_tests.rs        # Event handling and validation
-│   │       │   ├── job_tests.rs          # Job management and execution
-│   │       │   └── integration_tests.rs  # Nostr integration scenarios
+│   │       │   ├── mod.rs              # Nostr test module
+│   │       │   ├── event_tests.rs      # Event handling tests
+│   │       │   ├── job_tests.rs        # Job management tests
+│   │       │   └── integration_tests.rs # Nostr integration tests
 │   │       └── breez/
-│   │           ├── mod.rs                # Breez test module
-│   │           ├── payment_tests.rs      # Payment processing
-│   │           └── integration_tests.rs  # Payment integration scenarios
+│   │           ├── mod.rs              # Breez test module
+│   │           ├── payment_tests.rs     # Payment processing tests
+│   │           └── integration_tests.rs # Payment integration tests
 ├── src/
-│   └── __tests__/                        # Frontend tests
-│       ├── components/                    # Component tests
-│       ├── stores/                       # State management tests
-│       └── integration/                  # Frontend integration tests
-└── e2e/                                  # End-to-end tests
+│   └── __tests__/                      # Frontend tests
+│       ├── components/                  # Component tests
+│       ├── stores/                     # State management tests
+│       └── integration/                # Frontend integration tests
+└── e2e/                               # End-to-end tests
     ├── setup.ts
     └── scenarios/
 ```
 
 ## Backend Tests (Rust)
 
-### 1. MCP Server Tests
+### 1. MCP Prompt Tests
+
+**Provider Tests (provider.rs)**
+```rust
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_validate_required_arguments() {
+        // Test argument validation
+    }
+
+    #[tokio::test]
+    async fn test_process_prompt_messages() {
+        // Test message processing
+    }
+}
+```
+
+### 2. MCP Server Tests
 
 **Server Core (server_tests.rs)**
 ```rust
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     #[tokio::test]
-    async fn test_server_initialization() {
-        // Test server creation with default config
+    async fn test_websocket_connection() {
+        // Test server connection handling
     }
 
     #[tokio::test]
-    async fn test_server_shutdown() {
-        // Test clean server shutdown
+    async fn test_websocket_echo() {
+        // Test message echo functionality
     }
 
     #[tokio::test]
-    async fn test_multiple_client_connections() {
-        // Test handling multiple simultaneous clients
+    async fn test_multiple_clients() {
+        // Test multiple client handling
     }
 }
 ```
 
-**Client Management (client_tests.rs)**
-```rust
-#[cfg(test)]
-mod tests {
-    #[tokio::test]
-    async fn test_client_connection() {
-        // Test new client connection handling
-    }
-
-    #[tokio::test]
-    async fn test_client_capabilities() {
-        // Test client capability negotiation
-    }
-
-    #[tokio::test]
-    async fn test_client_disconnection() {
-        // Test client cleanup on disconnect
-    }
-}
-```
+### 3. MCP Protocol Tests
 
 **Protocol Handling (protocol_tests.rs)**
 ```rust
@@ -121,121 +126,41 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_resource_request() {
-        // Test resource request handling
-    }
-
-    #[tokio::test]
-    async fn test_tool_request() {
-        // Test tool invocation
+    async fn test_unknown_method() {
+        // Test unknown method handling
     }
 }
 ```
 
-### 2. Resource Provider Tests
+### 4. MCP Capabilities Tests
 
-**File System Provider (resource_tests.rs)**
+**Capability System (capabilities/tests.rs)**
 ```rust
 #[cfg(test)]
 mod tests {
     #[tokio::test]
-    async fn test_file_read() {
-        // Test file reading functionality
+    async fn test_capability_negotiation_with_experimental() {
+        // Test experimental capability negotiation
     }
 
     #[tokio::test]
-    async fn test_directory_listing() {
-        // Test directory content listing
+    async fn test_capability_negotiation_with_roots() {
+        // Test roots capability negotiation
     }
 
     #[tokio::test]
-    async fn test_resource_updates() {
-        // Test resource change notifications
-    }
-}
-```
-
-### 3. Tool Provider Tests
-
-**Tool Management (tool_tests.rs)**
-```rust
-#[cfg(test)]
-mod tests {
-    #[tokio::test]
-    async fn test_tool_registration() {
-        // Test tool provider registration
+    async fn test_capability_update() {
+        // Test capability updates
     }
 
     #[tokio::test]
-    async fn test_tool_execution() {
-        // Test tool execution flow
+    async fn test_client_registration() {
+        // Test client registration
     }
 
     #[tokio::test]
-    async fn test_tool_error_handling() {
-        // Test error scenarios in tools
-    }
-}
-```
-
-### 4. Nostr/NIP-90 Tests
-
-**Event Handling (event_tests.rs)**
-```rust
-#[cfg(test)]
-mod tests {
-    #[tokio::test]
-    async fn test_event_validation() {
-        // Test NIP-90 event validation
-    }
-
-    #[tokio::test]
-    async fn test_event_processing() {
-        // Test event processing pipeline
-    }
-}
-```
-
-**Job Management (job_tests.rs)**
-```rust
-#[cfg(test)]
-mod tests {
-    #[tokio::test]
-    async fn test_job_creation() {
-        // Test job creation from events
-    }
-
-    #[tokio::test]
-    async fn test_job_execution() {
-        // Test job execution flow
-    }
-
-    #[tokio::test]
-    async fn test_job_result_delivery() {
-        // Test result delivery
-    }
-}
-```
-
-### 5. Payment Tests
-
-**Payment Processing (payment_tests.rs)**
-```rust
-#[cfg(test)]
-mod tests {
-    #[tokio::test]
-    async fn test_invoice_generation() {
-        // Test Lightning invoice creation
-    }
-
-    #[tokio::test]
-    async fn test_payment_verification() {
-        // Test payment verification
-    }
-
-    #[tokio::test]
-    async fn test_payment_timeout() {
-        // Test payment timeout handling
+    async fn test_client_removal() {
+        // Test client removal
     }
 }
 ```
