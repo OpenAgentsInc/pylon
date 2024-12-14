@@ -144,8 +144,11 @@ pub struct Resource {
 
 // Resource content types
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type")]
 pub enum ResourceContents {
+    #[serde(rename = "Text")]
     Text(TextResourceContents),
+    #[serde(rename = "Blob")]
     Blob(BlobResourceContents),
 }
 
