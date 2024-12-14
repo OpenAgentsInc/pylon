@@ -1,4 +1,4 @@
-use log::{error, info};
+use log::{error, info, debug};
 use crate::mcp::types::*;
 use crate::mcp::clients::ClientInfo;
 use crate::mcp::providers::ResourceProvider;
@@ -11,11 +11,14 @@ impl MCPProtocol {
         message: &str,
     ) -> Result<String, Box<dyn std::error::Error>> {
         let request: JsonRpcRequest = serde_json::from_str(message)?;
+        debug!("Handling message from {}: {}", client_id, request.method);
 
-        // Update last message for client
-        self.client_manager
-            .update_last_message(client_id, request.method.clone())
-            .await;
+        // Only update last message if it's not an initialize request
+        if request.method != "initialize" {
+            self.client_manager
+                .update_last_message(client_id, request.method.clone())
+                .await;
+        }
 
         match request.method.as_str() {
             "initialize" => self.handle_initialize(client_id, &request).await,
@@ -93,8 +96,8 @@ impl MCPProtocol {
     ) -> Result<String, Box<dyn std::error::Error>> {
         let params: InitializeParams = serde_json::from_value(request.params.clone())?;
         info!(
-            "Received initialize request from client: {:?}",
-            params.client_info
+            "Received initialize request from client {}: {:?}",
+            client_id, params.client_info
         );
 
         // Store client info
@@ -116,9 +119,14 @@ impl MCPProtocol {
             ollama: params.capabilities.ollama,
         };
 
+        // Add client to manager
         self.client_manager
             .add_client(client_id.to_string(), client_info, capabilities)
             .await;
+
+        // Log current clients
+        let current_clients = self.client_manager.get_clients().await;
+        debug!("Current clients after adding {}: {:?}", client_id, current_clients);
 
         // Create initialize result
         let result = InitializeResult {
