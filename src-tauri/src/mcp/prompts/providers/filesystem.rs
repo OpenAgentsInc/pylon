@@ -10,6 +10,7 @@ use crate::mcp::prompts::{
     types::{Error, Prompt, PromptMessage, Result},
 };
 use crate::mcp::providers::filesystem::FileSystemProvider;
+use crate::mcp::providers::ResourceProvider;
 
 pub struct FileSystemPromptProvider {
     root_path: PathBuf,
@@ -82,8 +83,11 @@ impl PromptProvider for FileSystemPromptProvider {
     ) -> Result<Vec<PromptMessage>> {
         let prompt = self.load_prompt(name).await?;
         debug!("Loaded prompt: {:?}", prompt);
-        utils::process_prompt_messages(&prompt, arguments.as_ref(), Some(&self.resource_provider))
-            .await
+        utils::process_prompt_messages(
+            &prompt,
+            arguments.as_ref(),
+            Some(&(self.resource_provider.clone() as Arc<dyn ResourceProvider>))
+        ).await
     }
 
     fn validate_arguments(
