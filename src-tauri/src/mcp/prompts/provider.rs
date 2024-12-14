@@ -25,7 +25,7 @@ pub(crate) mod utils {
     use std::sync::Arc;
     
     /// Process a message template with the given arguments
-    pub fn process_message_template(
+    pub async fn process_message_template(
         message: &PromptMessage,
         arguments: &HashMap<String, String>,
         resource_provider: Option<&Arc<dyn ResourceProvider>>,
@@ -120,7 +120,7 @@ pub(crate) mod utils {
         // Then process each message
         let mut processed_messages = Vec::new();
         for message in &prompt.messages {
-            let processed = process_message_template(message, &arguments, resource_provider)?;
+            let processed = process_message_template(message, &arguments, resource_provider).await?;
             processed_messages.push(processed);
         }
         
