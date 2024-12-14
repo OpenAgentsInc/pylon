@@ -2,7 +2,7 @@ use std::sync::Arc;
 use actix_web::{web, App, Error, HttpRequest, HttpResponse, HttpServer};
 use actix_ws::Message;
 use futures_util::StreamExt as _;
-use log::{error, info};
+use log::{error, info, debug};
 use tokio::net::TcpListener;
 
 use super::protocol::MCPProtocol;
@@ -24,6 +24,7 @@ impl MCPServer {
         info!("Starting MCP server on {}:{}", host, port);
 
         // Clear any stale clients on startup
+        info!("Clearing stale clients on startup");
         protocol.get_client_manager().clear_clients().await;
 
         // First check if we can bind to the port
@@ -65,16 +66,19 @@ pub async fn handle_connection(
     let client_id = uuid::Uuid::new_v4().to_string();
     info!("New WebSocket connection: {}", client_id);
 
+    // Log current clients before adding new one
+    let current_clients = protocol.get_client_manager().get_clients().await;
+    debug!("Current clients before adding {}: {:?}", client_id, current_clients);
+
     // Spawn client handler
     let protocol_clone = protocol.clone();
     let client_id_clone = client_id.clone();
     
     actix_web::rt::spawn(async move {
-        let mut closed = false;
         while let Some(Ok(msg)) = msg_stream.next().await {
             match msg {
                 Message::Text(text) => {
-                    info!("Received message from {}: {}", client_id, text);
+                    debug!("Received message from {}: {}", client_id, text);
 
                     match protocol.handle_message(&client_id, &text).await {
                         Ok(response) => {
@@ -97,11 +101,20 @@ pub async fn handle_connection(
                 }
                 Message::Close(reason) => {
                     info!(
-                        "Client {} disconnected: {:?}",
+                        "Client {} disconnected with reason: {:?}",
                         client_id,
                         reason
                     );
-                    closed = true;
+                    // Log current clients before removing
+                    let current_clients = protocol.get_client_manager().get_clients().await;
+                    debug!("Current clients before removing {}: {:?}", client_id, current_clients);
+                    
+                    // Remove client
+                    protocol.get_client_manager().remove_client(&client_id).await;
+                    
+                    // Log clients after removing
+                    let remaining_clients = protocol.get_client_manager().get_clients().await;
+                    debug!("Remaining clients after removing {}: {:?}", client_id, remaining_clients);
                     break;
                 }
                 Message::Ping(bytes) => {
@@ -114,16 +127,21 @@ pub async fn handle_connection(
             }
         }
 
-        // Clean up when client disconnects
-        if !closed {
-            info!("Client {} connection lost", client_id);
-            if let Err(e) = session.close(None).await {
-                error!("Error closing session for {}: {}", client_id, e);
-            }
-        }
+        info!("Client {} connection ended, cleaning up", client_id);
+        // Log current clients before final cleanup
+        let current_clients = protocol_clone.get_client_manager().get_clients().await;
+        debug!("Current clients before final cleanup of {}: {:?}", client_id, current_clients);
         
-        info!("Removing client {}", client_id);
+        // Remove client
         protocol_clone.get_client_manager().remove_client(&client_id_clone).await;
+        
+        // Log remaining clients
+        let remaining_clients = protocol_clone.get_client_manager().get_clients().await;
+        debug!("Remaining clients after final cleanup of {}: {:?}", client_id, remaining_clients);
+        
+        if let Err(e) = session.close(None).await {
+            error!("Error closing session for {}: {}", client_id, e);
+        }
     });
 
     Ok(response)
