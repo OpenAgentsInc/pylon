@@ -2,6 +2,7 @@ use crate::mcp::types::{Role, ResourceContents};
 use std::collections::HashMap;
 use tempfile::TempDir;
 use async_trait::async_trait;
+use log::{debug, info};
 
 // Import the prompts module
 use crate::mcp::prompts::{
@@ -164,17 +165,18 @@ async fn test_prompt_with_resource() {
     let provider = FileSystemPromptProvider::new(temp_dir.path());
 
     // Create a test resource file
+    let resource_path = temp_dir.path().join("resource.txt");
     tokio::fs::write(
-        temp_dir.path().join("resource.txt"),
+        &resource_path,
         "Test resource content",
     )
     .await
     .unwrap();
 
+    debug!("Created resource file at: {:?}", resource_path);
+
     // Create a prompt that references the resource
-    tokio::fs::write(
-        temp_dir.path().join("test.yaml"),
-        r#"
+    let yaml = format!(r#"
 name: test
 arguments:
   - name: resource_path
@@ -182,33 +184,42 @@ arguments:
 messages:
   - role: user
     content_type: resource
-    type: resource
+    r#type: resource
     resource:
       type: Text
       uri: "{resource_path}"
       text: ""
       mime_type: text/plain
-"#,
+"#);
+
+    debug!("YAML content:\n{}", yaml);
+
+    tokio::fs::write(
+        temp_dir.path().join("test.yaml"),
+        yaml,
     )
     .await
     .unwrap();
 
     let mut args = HashMap::new();
-    args.insert(
-        "resource_path".to_string(),
-        format!("file://{}", temp_dir.path().join("resource.txt").display()),
-    );
+    let resource_uri = format!("file://{}", resource_path.display());
+    debug!("Resource URI: {}", resource_uri);
+    args.insert("resource_path".to_string(), resource_uri);
 
     let messages = provider.get_prompt("test", Some(args)).await.unwrap();
     assert_eq!(messages.len(), 1);
 
     match &messages[0].content {
-        MessageContent::Resource { resource, .. } => match resource {
-            ResourceContents::Text(text) => {
-                assert_eq!(text.text, "Test resource content");
+        MessageContent::Resource { resource, r#type, .. } => {
+            debug!("Resource type: {}", r#type);
+            match resource {
+                ResourceContents::Text(text) => {
+                    debug!("Resource text content: {:?}", text);
+                    assert_eq!(text.text, "Test resource content");
+                }
+                _ => panic!("Expected TextResourceContents"),
             }
-            _ => panic!("Expected TextResourceContents"),
-        },
-        _ => panic!("Expected ResourceContent"),
+        }
+        other => panic!("Expected ResourceContent, got {:?}", other),
     }
 }
