@@ -2,16 +2,31 @@
 
 ## Currently passing tests
 
-test mcp::capabilities::tests::test_capability_negotiation_with_experimental ... ok
-test mcp::capabilities::tests::test_capability_negotiation_with_roots ... ok
+running 22 tests
+test mcp::prompts::types::tests::test_message_content_serialization ... ok
+test mcp::prompts::types::tests::test_template_substitution ... ok
+test mcp::prompts::provider::tests::test_validate_required_arguments ... ok
+test mcp::prompts::provider::tests::test_process_prompt_messages ... ok
 test mcp::protocol::tests::test_unknown_method ... ok
+test mcp::prompts::types::tests::test_yaml_serialization ... ok
+test tests::mcp::prompts::test_list_prompts ... ok
+test tests::mcp::prompts::test_get_prompt ... ok
+test mcp::clients::tests::test_client_management ... ok
+test tests::mcp::prompts::test_filesystem_provider ... ok
+test tests::mcp::prompts::test_prompt_with_resource ... ok
 test mcp::protocol::tests::test_initialize_request ... ok
-test mcp::capabilities::tests::test_capability_update ... ok
-test mcp::capabilities::tests::test_client_registration ... ok
-test mcp::capabilities::tests::test_client_removal ... ok
 test tests::mcp::server_tests::tests::test_websocket_connection ... ok
+test mcp::providers::ollama::tests::test_chat_stream ... ok
+test tests::ollama_tests::tests::test_ollama_error_handling ... ok
+test mcp::providers::ollama::tests::test_list_models ... ok
+test mcp::providers::ollama::tests::test_chat ... ok
+test tests::ollama_tests::tests::test_ollama_streaming ... ok
+test mcp::protocol::tests::test_ollama_chat ... ok
+test tests::ollama_tests::tests::test_ollama_integration ... ok
 test tests::mcp::server_tests::tests::test_websocket_echo ... ok
 test tests::mcp::server_tests::tests::test_multiple_clients ... ok
+
+test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
 
 ## Test Structure
 
