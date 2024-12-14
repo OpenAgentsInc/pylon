@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-use crate::mcp::types::{Role, TextContent, ImageContent, ResourceContents, Annotations};
+use crate::mcp::types::{Role, ResourceContents, Annotations};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Prompt {
