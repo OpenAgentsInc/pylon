@@ -108,10 +108,8 @@ arguments:
     required: true
 messages:
   - role: user
-    content:
-      type: text
-      content_type: text
-      text: "Hello {arg1}!"
+    content_type: text
+    text: "Hello {arg1}!"
 "#,
         )
         .await
@@ -177,10 +175,8 @@ arguments:
     required: true
 messages:
   - role: user
-    content:
-      type: text
-      content_type: text
-      text: "Hello {name}!"
+    content_type: text
+    text: "Hello {name}!"
 "#,
         )
         .await
@@ -193,8 +189,8 @@ messages:
         assert_eq!(messages.len(), 1);
         
         match &messages[0].content {
-            crate::mcp::prompts::MessageContent::Text(text) => {
-                assert_eq!(text.text, "Hello world!");
+            crate::mcp::prompts::MessageContent::Text { text, .. } => {
+                assert_eq!(text, "Hello world!");
             }
             _ => panic!("Expected TextContent"),
         }
