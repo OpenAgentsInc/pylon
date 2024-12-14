@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-use crate::mcp::protocol::types::{Role, TextContent, ImageContent, ResourceContents};
+use crate::mcp::types::{Role, TextContent, ImageContent, ResourceContents, Annotations};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Prompt {
@@ -46,12 +46,14 @@ pub struct EmbeddedResource {
     pub annotations: Option<Annotations>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Annotations {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub audience: Option<Vec<Role>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub priority: Option<f32>,
+impl EmbeddedResource {
+    pub fn with_uri(mut self, uri: String) -> Self {
+        match &mut self.resource {
+            ResourceContents::Text(text) => text.uri = uri,
+            ResourceContents::Blob(blob) => blob.uri = uri,
+        }
+        self
+    }
 }
 
 #[derive(Debug, thiserror::Error)]
