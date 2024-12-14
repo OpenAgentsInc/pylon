@@ -3,7 +3,6 @@ use actix_web::{web, App, Error, HttpRequest, HttpResponse, HttpServer};
 use actix_ws::Message;
 use futures_util::StreamExt as _;
 use log::{error, info};
-use tokio::sync::oneshot;
 use tokio::net::TcpListener;
 
 use super::protocol::MCPProtocol;
@@ -37,25 +36,8 @@ impl MCPServer {
         .workers(4) // Reduce number of workers
         .bind(&addr)?;
 
-        // Create a oneshot channel for server startup signal
-        let (tx, rx) = oneshot::channel();
-        let server = server.run();
-
-        // Clone tx for use in the spawn
-        let tx = tx.clone();
-
-        // Spawn the server
-        tokio::spawn(async move {
-            // Signal that server is starting
-            let _ = tx.send(());
-            server.await
-        });
-
-        // Wait for server to start
-        rx.await.map_err(|e| std::io::Error::new(
-            std::io::ErrorKind::Other,
-            format!("Failed to receive server start signal: {}", e)
-        ))?;
+        // Spawn the server in a background task
+        tokio::spawn(server.run());
 
         // Add a small delay to ensure server is fully initialized
         tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
