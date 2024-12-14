@@ -89,7 +89,7 @@ pub struct InitializeResult {
     pub server_info: Implementation,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Role {
     Assistant,
@@ -101,6 +101,23 @@ pub struct TextContent {
     pub text: String,
     #[serde(rename = "type")]
     pub content_type: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub annotations: Option<Annotations>,
+}
+
+impl TextContent {
+    pub fn with_text(mut self, text: String) -> Self {
+        self.text = text;
+        self
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ImageContent {
+    pub data: Vec<u8>,
+    #[serde(rename = "type")]
+    pub content_type: String,
+    pub mime_type: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub annotations: Option<Annotations>,
 }
@@ -130,6 +147,15 @@ pub struct Resource {
 pub enum ResourceContents {
     Text(TextResourceContents),
     Blob(BlobResourceContents),
+}
+
+impl ResourceContents {
+    pub fn uri(&self) -> String {
+        match self {
+            ResourceContents::Text(text) => text.uri.clone(),
+            ResourceContents::Blob(blob) => blob.uri.clone(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
