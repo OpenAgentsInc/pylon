@@ -24,6 +24,7 @@ pub struct PromptArgument {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PromptMessage {
     pub role: Role,
+    #[serde(flatten)]
     pub content: MessageContent,
 }
 
@@ -31,28 +32,44 @@ pub struct PromptMessage {
 #[serde(tag = "type")]
 pub enum MessageContent {
     #[serde(rename = "text")]
-    Text(TextContent),
+    Text {
+        text: String,
+        content_type: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        annotations: Option<Annotations>,
+    },
     #[serde(rename = "image")]
-    Image(ImageContent),
+    Image {
+        data: Vec<u8>,
+        content_type: String,
+        mime_type: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        annotations: Option<Annotations>,
+    },
     #[serde(rename = "resource")]
-    Resource(EmbeddedResource),
+    Resource {
+        r#type: String,
+        resource: ResourceContents,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        annotations: Option<Annotations>,
+    },
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct EmbeddedResource {
-    pub r#type: String,
-    pub resource: ResourceContents,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub annotations: Option<Annotations>,
-}
-
-impl EmbeddedResource {
-    pub fn with_uri(mut self, uri: String) -> Self {
-        match &mut self.resource {
-            ResourceContents::Text(text) => text.uri = uri,
-            ResourceContents::Blob(blob) => blob.uri = uri,
+impl MessageContent {
+    pub fn with_text(text: String) -> Self {
+        MessageContent::Text {
+            text,
+            content_type: "text".to_string(),
+            annotations: None,
         }
-        self
+    }
+
+    pub fn with_resource(resource: ResourceContents) -> Self {
+        MessageContent::Resource {
+            r#type: "resource".to_string(),
+            resource,
+            annotations: None,
+        }
     }
 }
 
@@ -126,11 +143,11 @@ mod tests {
 
     #[test]
     fn test_message_content_serialization() {
-        let text_content = MessageContent::Text(TextContent {
+        let text_content = MessageContent::Text {
             text: "Hello".to_string(),
             content_type: "text".to_string(),
             annotations: None,
-        });
+        };
 
         let json = serde_json::to_string(&text_content).unwrap();
         assert_eq!(
@@ -138,7 +155,7 @@ mod tests {
             r#"{"type":"text","text":"Hello","content_type":"text"}"#
         );
 
-        let resource_content = MessageContent::Resource(EmbeddedResource {
+        let resource_content = MessageContent::Resource {
             r#type: "resource".to_string(),
             resource: ResourceContents::Text(crate::mcp::types::TextResourceContents {
                 uri: "test.txt".to_string(),
@@ -146,11 +163,11 @@ mod tests {
                 text: "Hello".to_string(),
             }),
             annotations: None,
-        });
+        };
 
         let json = serde_json::to_string(&resource_content).unwrap();
         assert!(json.contains(r#""type":"resource""#));
-        assert!(json.contains(r#""uri":"test.txt""#));
+        assert!(json.contains(r#""resource":{"type":"Text""#));
     }
 
     #[test]
@@ -165,11 +182,11 @@ mod tests {
             }],
             messages: vec![PromptMessage {
                 role: Role::User,
-                content: MessageContent::Text(TextContent {
+                content: MessageContent::Text {
                     text: "Hello {arg1}!".to_string(),
                     content_type: "text".to_string(),
                     annotations: None,
-                }),
+                },
             }],
         };
 
