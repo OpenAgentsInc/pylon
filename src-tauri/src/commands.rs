@@ -1,5 +1,6 @@
 use pylon_lib::mcp::protocol::MCPProtocol;
 use std::collections::HashMap;
+use std::sync::Arc;
 use tauri::State;
 use serde::Serialize;
 
@@ -34,7 +35,7 @@ pub struct ClientResponse {
 }
 
 #[tauri::command]
-pub async fn get_connected_clients(protocol: State<'_, MCPProtocol>) -> Result<Vec<ClientResponse>, String> {
+pub async fn get_connected_clients(protocol: State<'_, Arc<MCPProtocol>>) -> Result<Vec<ClientResponse>, String> {
     let clients = protocol.get_client_manager().get_clients().await;
     
     Ok(clients.into_iter().map(|client| ClientResponse {
