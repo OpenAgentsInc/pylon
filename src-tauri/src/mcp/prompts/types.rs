@@ -29,19 +29,17 @@ pub struct PromptMessage {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(tag = "type")]
+#[serde(tag = "content_type")]
 pub enum MessageContent {
     #[serde(rename = "text")]
     Text {
         text: String,
-        content_type: String,
         #[serde(skip_serializing_if = "Option::is_none")]
         annotations: Option<Annotations>,
     },
     #[serde(rename = "image")]
     Image {
         data: Vec<u8>,
-        content_type: String,
         mime_type: String,
         #[serde(skip_serializing_if = "Option::is_none")]
         annotations: Option<Annotations>,
@@ -59,7 +57,6 @@ impl MessageContent {
     pub fn with_text(text: String) -> Self {
         MessageContent::Text {
             text,
-            content_type: "text".to_string(),
             annotations: None,
         }
     }
@@ -145,14 +142,13 @@ mod tests {
     fn test_message_content_serialization() {
         let text_content = MessageContent::Text {
             text: "Hello".to_string(),
-            content_type: "text".to_string(),
             annotations: None,
         };
 
         let json = serde_json::to_string(&text_content).unwrap();
         assert_eq!(
             json,
-            r#"{"type":"text","text":"Hello","content_type":"text"}"#
+            r#"{"content_type":"text","text":"Hello"}"#
         );
 
         let resource_content = MessageContent::Resource {
@@ -166,7 +162,7 @@ mod tests {
         };
 
         let json = serde_json::to_string(&resource_content).unwrap();
-        assert!(json.contains(r#""type":"resource""#));
+        assert!(json.contains(r#""content_type":"resource""#));
         assert!(json.contains(r#""resource":{"type":"Text""#));
     }
 
@@ -184,7 +180,6 @@ mod tests {
                 role: Role::User,
                 content: MessageContent::Text {
                     text: "Hello {arg1}!".to_string(),
-                    content_type: "text".to_string(),
                     annotations: None,
                 },
             }],
