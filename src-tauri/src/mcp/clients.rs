@@ -87,7 +87,9 @@ mod tests {
             name: "test".to_string(),
             version: "1.0".to_string(),
         };
-        let capabilities = ClientCapabilities {
+        
+        // Create a function to generate fresh capabilities for each test
+        let make_capabilities = || ClientCapabilities {
             experimental: None,
             roots: None,
             sampling: None,
@@ -97,7 +99,9 @@ mod tests {
                 streaming: true,
             }),
         };
-        manager.add_client("test-id".to_string(), info.clone(), capabilities).await;
+
+        // Use fresh capabilities for each call
+        manager.add_client("test-id".to_string(), info.clone(), make_capabilities()).await;
 
         // Check client was added
         let clients = manager.get_clients().await;
@@ -116,8 +120,8 @@ mod tests {
         assert_eq!(clients.len(), 0);
 
         // Test clear_clients
-        manager.add_client("test-id1".to_string(), info.clone(), capabilities.clone()).await;
-        manager.add_client("test-id2".to_string(), info.clone(), capabilities.clone()).await;
+        manager.add_client("test-id1".to_string(), info.clone(), make_capabilities()).await;
+        manager.add_client("test-id2".to_string(), info.clone(), make_capabilities()).await;
         assert_eq!(manager.get_clients().await.len(), 2);
         manager.clear_clients().await;
         assert_eq!(manager.get_clients().await.len(), 0);
