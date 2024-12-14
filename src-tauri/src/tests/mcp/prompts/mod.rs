@@ -43,7 +43,7 @@ mod mock {
                     role: Role::User,
                     content: MessageContent::Text(TextContent {
                         text: "Test message".to_string(),
-                        r#type: "text".to_string(),
+                        content_type: "text".to_string(),
                         annotations: None,
                     }),
                 }],
@@ -111,7 +111,7 @@ async fn test_get_prompt() {
     match &message.content {
         MessageContent::Text(text) => {
             assert_eq!(text.text, "Test message");
-            assert_eq!(text.r#type, "text");
+            assert_eq!(text.content_type, "text");
         }
         _ => panic!("Expected TextContent"),
     }
