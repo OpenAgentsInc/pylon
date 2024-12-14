@@ -136,8 +136,8 @@ messages:
   - role: user
     content:
       type: text
-      text: "Hello {name}!"
       content_type: text
+      text: "Hello {name}!"
 "#,
     )
     .await
@@ -193,6 +193,7 @@ messages:
         type: Text
         uri: "{{resource_path}}"
         text: ""
+        mime_type: text/plain
 "#
         ),
     )
