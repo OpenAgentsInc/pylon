@@ -1,7 +1,13 @@
-use crate::mcp::prompts::*;
-use crate::mcp::protocol::types::{Role, TextContent};
+use crate::mcp::types::{Role, TextContent, ResourceContents};
 use std::collections::HashMap;
 use tempfile::TempDir;
+use async_trait::async_trait;
+
+// Import the prompts module
+use crate::mcp::prompts::{
+    Prompt, PromptArgument, PromptMessage, MessageContent, Error,
+    PromptProvider, FileSystemPromptProvider,
+};
 
 mod mock {
     use super::*;
@@ -50,20 +56,20 @@ mod mock {
         }
     }
 
-    #[async_trait::async_trait]
+    #[async_trait]
     impl PromptProvider for MockPromptProvider {
-        async fn list_prompts(&self, _cursor: Option<String>) -> Result<(Vec<Prompt>, Option<String>)> {
+        async fn list_prompts(&self, _cursor: Option<String>) -> Result<(Vec<Prompt>, Option<String>), Error> {
             Ok((self.prompts.values().cloned().collect(), None))
         }
 
-        async fn get_prompt(&self, name: &str, _arguments: Option<HashMap<String, String>>) -> Result<Vec<PromptMessage>> {
+        async fn get_prompt(&self, name: &str, _arguments: Option<HashMap<String, String>>) -> Result<Vec<PromptMessage>, Error> {
             self.prompt_messages
                 .get(name)
                 .cloned()
                 .ok_or_else(|| Error::PromptNotFound(name.to_string()))
         }
 
-        fn validate_arguments(&self, prompt: &Prompt, arguments: &HashMap<String, String>) -> Result<()> {
+        fn validate_arguments(&self, prompt: &Prompt, arguments: &HashMap<String, String>) -> Result<(), Error> {
             for arg in &prompt.arguments {
                 if arg.required && !arguments.contains_key(&arg.name) {
                     return Err(Error::MissingRequiredArgument(arg.name.clone()));
@@ -200,7 +206,7 @@ messages:
 
     match &messages[0].content {
         MessageContent::Resource(resource) => match &resource.resource {
-            crate::mcp::protocol::types::ResourceContents::Text(text) => {
+            ResourceContents::Text(text) => {
                 assert_eq!(text.text, "Test resource content");
             }
             _ => panic!("Expected TextResourceContents"),
