@@ -3,7 +3,7 @@ use std::thread;
 use std::sync::Arc;
 use std::sync::mpsc;
 use std::time::Duration;
-use pylon_lib::mcp::MCPServer;
+use pylon_lib::mcp::{MCPServer, protocol::MCPProtocol};
 
 mod commands;
 
@@ -66,7 +66,7 @@ fn main() {
             // Run Tauri application only after server is confirmed running
             tauri::Builder::default()
                 .plugin(tauri_plugin_shell::init())
-                .manage(protocol.clone())
+                .manage(protocol) // protocol is already an Arc<MCPProtocol>
                 .invoke_handler(tauri::generate_handler![
                     commands::get_connected_clients
                 ])
