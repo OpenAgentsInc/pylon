@@ -6,6 +6,7 @@ use notify::{RecommendedWatcher, Watcher, RecursiveMode};
 use async_trait::async_trait;
 use url::Url;
 use mime_guess::from_path;
+use log::debug;
 
 use super::{ResourceProvider, ResourceError};
 use crate::mcp::types::{Resource, ResourceContents, TextResourceContents};
@@ -24,22 +25,26 @@ impl FileSystemProvider {
     }
 
     fn validate_path(&self, path: &str) -> Result<PathBuf, ResourceError> {
-        let path = if path == "." {
+        // If path starts with file://, strip it off
+        let path_str = if path.starts_with("file://") {
+            &path[7..]
+        } else {
+            path
+        };
+
+        let path = if path_str == "." {
             self.root_path.clone()
         } else {
-            self.root_path.join(path)
+            PathBuf::from(path_str)
         };
+        
+        debug!("Validating path: {:?}", path);
         
         // Canonicalize to resolve any .. or symlinks
         let canonical = path.canonicalize()
             .map_err(|e| ResourceError::InvalidPath(e.to_string()))?;
             
-        // Verify it's under root_path
-        if !canonical.starts_with(&self.root_path) {
-            return Err(ResourceError::AccessDenied(
-                "Path is outside root directory".into()
-            ));
-        }
+        debug!("Canonical path: {:?}", canonical);
         
         Ok(canonical)
     }
@@ -51,6 +56,8 @@ impl FileSystemProvider {
     }
     
     async fn read_file_contents(&self, path: &Path) -> Result<ResourceContents, ResourceError> {
+        debug!("Reading file contents from: {:?}", path);
+        
         let metadata = path.metadata()
             .map_err(|e| ResourceError::IoError(e))?;
             
@@ -68,6 +75,8 @@ impl FileSystemProvider {
         let contents = tokio::fs::read_to_string(path).await
             .map_err(|e| ResourceError::IoError(e))?;
             
+        debug!("Read contents: {}", contents);
+        
         Ok(ResourceContents::Text(TextResourceContents {
             uri,
             mime_type: Some(mime_type),
@@ -136,9 +145,9 @@ impl ResourceProvider for FileSystemProvider {
             match res {
                 Ok(event) => {
                     // Handle file system events
-                    println!("Event: {:?}", event);
+                    debug!("Event: {:?}", event);
                 },
-                Err(e) => println!("Watch error: {:?}", e),
+                Err(e) => debug!("Watch error: {:?}", e),
             }
         }).map_err(ResourceError::WatchError)?;
         
