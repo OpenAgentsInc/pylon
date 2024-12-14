@@ -2,7 +2,7 @@ use crate::mcp::types::{Role, ResourceContents};
 use std::collections::HashMap;
 use tempfile::TempDir;
 use async_trait::async_trait;
-use log::{debug, info};
+use log::debug;
 
 // Import the prompts module
 use crate::mcp::prompts::{
@@ -184,13 +184,13 @@ arguments:
 messages:
   - role: user
     content_type: resource
-    r#type: resource
+    type: resource
     resource:
       type: Text
-      uri: "{resource_path}"
+      uri: "{}"
       text: ""
       mime_type: text/plain
-"#);
+"#, resource_path.to_string_lossy());
 
     debug!("YAML content:\n{}", yaml);
 
