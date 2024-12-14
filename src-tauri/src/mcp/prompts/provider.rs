@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use async_trait::async_trait;
+use log::debug;
 
 use super::types::{Prompt, PromptMessage, Result, Error};
 
@@ -20,11 +21,14 @@ pub trait PromptProvider {
 pub(crate) mod utils {
     use super::*;
     use crate::mcp::prompts::types::{MessageContent, substitute_template};
+    use crate::mcp::providers::ResourceProvider;
+    use std::sync::Arc;
     
     /// Process a message template with the given arguments
     pub fn process_message_template(
         message: &PromptMessage,
         arguments: &HashMap<String, String>,
+        resource_provider: Option<&Arc<dyn ResourceProvider>>,
     ) -> Result<PromptMessage> {
         let content = match &message.content {
             MessageContent::Text { text, annotations } => {
@@ -36,12 +40,47 @@ pub(crate) mod utils {
             }
             MessageContent::Resource { r#type, resource, annotations } => {
                 let processed_uri = substitute_template(&resource.uri(), arguments)?;
-                let mut new_resource = resource.clone();
-                new_resource.set_uri(processed_uri);
-                MessageContent::Resource {
-                    r#type: r#type.clone(),
-                    resource: new_resource,
-                    annotations: annotations.clone(),
+                debug!("Processed resource URI: {}", processed_uri);
+
+                // If we have a resource provider, try to read the resource
+                if let Some(provider) = resource_provider {
+                    debug!("Reading resource from provider");
+                    match provider.read(&processed_uri).await {
+                        Ok(contents) => {
+                            debug!("Got resource contents: {:?}", contents);
+                            if let Some(content) = contents.first() {
+                                MessageContent::Resource {
+                                    r#type: r#type.clone(),
+                                    resource: content.clone(),
+                                    annotations: annotations.clone(),
+                                }
+                            } else {
+                                debug!("No resource contents returned");
+                                MessageContent::Resource {
+                                    r#type: r#type.clone(),
+                                    resource: resource.clone(),
+                                    annotations: annotations.clone(),
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            debug!("Error reading resource: {:?}", e);
+                            MessageContent::Resource {
+                                r#type: r#type.clone(),
+                                resource: resource.clone(),
+                                annotations: annotations.clone(),
+                            }
+                        }
+                    }
+                } else {
+                    debug!("No resource provider available");
+                    let mut new_resource = resource.clone();
+                    new_resource.set_uri(processed_uri);
+                    MessageContent::Resource {
+                        r#type: r#type.clone(),
+                        resource: new_resource,
+                        annotations: annotations.clone(),
+                    }
                 }
             }
             MessageContent::Image { data, mime_type, annotations } => MessageContent::Image {
@@ -71,6 +110,7 @@ pub(crate) mod utils {
     pub async fn process_prompt_messages(
         prompt: &Prompt,
         arguments: Option<&HashMap<String, String>>,
+        resource_provider: Option<&Arc<dyn ResourceProvider>>,
     ) -> Result<Vec<PromptMessage>> {
         let arguments = arguments.cloned().unwrap_or_default();
         
@@ -80,7 +120,7 @@ pub(crate) mod utils {
         // Then process each message
         let mut processed_messages = Vec::new();
         for message in &prompt.messages {
-            let processed = process_message_template(message, &arguments)?;
+            let processed = process_message_template(message, &arguments, resource_provider)?;
             processed_messages.push(processed);
         }
         
@@ -156,7 +196,7 @@ mod tests {
         let mut args = HashMap::new();
         args.insert("name".to_string(), "world".to_string());
         
-        let processed = utils::process_prompt_messages(&prompt, Some(&args)).await.unwrap();
+        let processed = utils::process_prompt_messages(&prompt, Some(&args), None).await.unwrap();
         assert_eq!(processed.len(), 1);
         
         match &processed[0].content {
