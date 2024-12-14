@@ -183,7 +183,7 @@ arguments:
 messages:
   - role: user
     content_type: resource
-    r#type: resource
+    type: resource
     resource:
       type: Text
       uri: "{{{{resource_path}}}}"
