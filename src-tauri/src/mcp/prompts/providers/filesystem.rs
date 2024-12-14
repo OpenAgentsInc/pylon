@@ -110,8 +110,8 @@ messages:
   - role: user
     content:
       type: text
-      text: "Hello {arg1}!"
       content_type: text
+      text: "Hello {arg1}!"
 "#,
         )
         .await
@@ -179,8 +179,8 @@ messages:
   - role: user
     content:
       type: text
-      text: "Hello {name}!"
       content_type: text
+      text: "Hello {name}!"
 "#,
         )
         .await
