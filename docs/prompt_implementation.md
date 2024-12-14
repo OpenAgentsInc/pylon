@@ -4,6 +4,17 @@
 
 This document outlines the plan for implementing prompt handling capabilities according to the Model Context Protocol (MCP) specification. The implementation will support prompt templates, arguments, and prompt-related notifications.
 
+Prompts in MCP are designed to be **user-controlled**, meaning they are exposed from servers to clients with the intention of the user being able to explicitly select them for use.
+
+## Core Features
+
+Prompts in MCP are predefined templates that can:
+- Accept dynamic arguments
+- Include context from resources
+- Chain multiple interactions
+- Guide specific workflows
+- Surface as UI elements (like slash commands)
+
 ## Core Components
 
 ### 1. Types and Structures
@@ -99,7 +110,13 @@ impl PromptProvider for FileSystemPromptProvider {
 ### Phase 4: Frontend Integration
 
 1. Add prompt-related WebSocket message handling
-2. Create prompt management UI components
+2. Create prompt management UI components:
+   - Slash commands
+   - Quick actions
+   - Context menu items
+   - Command palette entries
+   - Guided workflows
+   - Interactive forms
 3. Implement prompt template visualization
 4. Add argument input forms
 5. Support prompt list updates
@@ -161,6 +178,95 @@ messages:
       type: resource
       uri: "{file_path}"
 ```
+
+## Dynamic Prompts
+
+### 1. Resource Context
+
+Support embedding resource context in prompts:
+```rust
+pub struct ResourceContext {
+    pub uri: String,
+    pub content: String,
+    pub mime_type: Option<String>,
+}
+```
+
+### 2. Multi-step Workflows
+
+Support for chained interactions:
+```rust
+pub struct WorkflowStep {
+    pub messages: Vec<PromptMessage>,
+    pub next_step: Option<Box<WorkflowStep>>,
+}
+```
+
+## Security Considerations
+
+1. **Input Validation**
+   - Validate all arguments
+   - Sanitize user input
+   - Implement strict type checking
+
+2. **Access Control**
+   - Implement access controls for prompts
+   - Control resource access
+   - Audit prompt usage
+
+3. **Data Protection**
+   - Handle sensitive data appropriately
+   - Implement secure storage
+   - Validate generated content
+
+4. **Rate Limiting**
+   - Implement request rate limiting
+   - Add timeout mechanisms
+   - Monitor usage patterns
+
+5. **Prompt Injection Prevention**
+   - Validate template syntax
+   - Escape special characters
+   - Implement content filtering
+
+## Best Practices
+
+1. **Naming and Documentation**
+   - Use clear, descriptive prompt names
+   - Provide detailed descriptions
+   - Document expected argument formats
+
+2. **Error Handling**
+   - Validate all required arguments
+   - Handle missing arguments gracefully
+   - Provide clear error messages
+
+3. **Performance**
+   - Cache dynamic content when appropriate
+   - Implement lazy loading
+   - Optimize template processing
+
+4. **Maintainability**
+   - Consider versioning for prompt templates
+   - Support template inheritance
+   - Enable prompt composability
+
+5. **Testing**
+   - Test with various inputs
+   - Verify error cases
+   - Validate template rendering
+
+## Updates and Changes
+
+1. **Server Capabilities**
+   - Implement prompts.listChanged capability
+   - Support notifications/prompts/list_changed
+   - Handle client re-fetching
+
+2. **Change Management**
+   - Track prompt versions
+   - Notify clients of updates
+   - Support backwards compatibility
 
 ## Next Steps
 
