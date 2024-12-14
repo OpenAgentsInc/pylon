@@ -1,4 +1,4 @@
-use crate::mcp::types::{Role, TextContent, ResourceContents};
+use crate::mcp::types::{Role, ResourceContents};
 use std::collections::HashMap;
 use tempfile::TempDir;
 use async_trait::async_trait;
@@ -43,7 +43,6 @@ mod mock {
                     role: Role::User,
                     content: MessageContent::Text {
                         text: "Test message".to_string(),
-                        content_type: "text".to_string(),
                         annotations: None,
                     },
                 }],
@@ -109,9 +108,8 @@ async fn test_get_prompt() {
     assert_eq!(message.role, Role::User);
 
     match &message.content {
-        MessageContent::Text { text, content_type, .. } => {
+        MessageContent::Text { text, .. } => {
             assert_eq!(text, "Test message");
-            assert_eq!(content_type, "text");
         }
         _ => panic!("Expected TextContent"),
     }
@@ -134,9 +132,8 @@ arguments:
     required: true
 messages:
   - role: user
-    type: text
-    text: "Hello {name}!"
     content_type: text
+    text: "Hello {name}!"
 "#,
     )
     .await
@@ -185,11 +182,11 @@ arguments:
     required: true
 messages:
   - role: user
-    type: resource
+    content_type: resource
     r#type: resource
     resource:
       type: Text
-      uri: "{{resource_path}}"
+      uri: "{{{{resource_path}}}}"
       text: ""
       mime_type: text/plain
 "#
