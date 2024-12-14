@@ -54,6 +54,11 @@ impl ClientManager {
         debug!("Current clients: {:?}", self.clients.read().await.keys().collect::<Vec<_>>());
     }
 
+    pub async fn clear_clients(&self) {
+        info!("Clearing all clients");
+        self.clients.write().await.clear();
+    }
+
     pub async fn update_last_message(&self, id: &str, message: String) {
         if let Some(client) = self.clients.write().await.get_mut(id) {
             debug!("Updating last message for client {}: {}", id, message);
@@ -109,5 +114,12 @@ mod tests {
         manager.remove_client("test-id").await;
         let clients = manager.get_clients().await;
         assert_eq!(clients.len(), 0);
+
+        // Test clear_clients
+        manager.add_client("test-id1".to_string(), info.clone(), capabilities.clone()).await;
+        manager.add_client("test-id2".to_string(), info.clone(), capabilities.clone()).await;
+        assert_eq!(manager.get_clients().await.len(), 2);
+        manager.clear_clients().await;
+        assert_eq!(manager.get_clients().await.len(), 0);
     }
 }
