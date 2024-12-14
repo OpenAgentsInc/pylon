@@ -97,32 +97,6 @@ pub enum Role {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TextContent {
-    pub text: String,
-    #[serde(rename = "type")]
-    pub content_type: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub annotations: Option<Annotations>,
-}
-
-impl TextContent {
-    pub fn with_text(mut self, text: String) -> Self {
-        self.text = text;
-        self
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ImageContent {
-    pub data: Vec<u8>,
-    #[serde(rename = "type")]
-    pub content_type: String,
-    pub mime_type: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub annotations: Option<Annotations>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Annotations {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub audience: Option<Vec<Role>>,
@@ -157,6 +131,13 @@ impl ResourceContents {
         match self {
             ResourceContents::Text(text) => text.uri.clone(),
             ResourceContents::Blob(blob) => blob.uri.clone(),
+        }
+    }
+
+    pub fn set_uri(&mut self, uri: String) {
+        match self {
+            ResourceContents::Text(text) => text.uri = uri,
+            ResourceContents::Blob(blob) => blob.uri = uri,
         }
     }
 }
