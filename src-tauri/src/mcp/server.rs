@@ -3,6 +3,7 @@ use actix_web::{web, App, Error, HttpRequest, HttpResponse, HttpServer};
 use actix_ws::Message;
 use futures_util::StreamExt as _;
 use log::{error, info};
+use tokio::sync::oneshot;
 
 use super::protocol::MCPProtocol;
 
@@ -19,17 +20,37 @@ impl MCPServer {
 
     pub async fn start(&self, host: &str, port: u16) -> std::io::Result<()> {
         let protocol = self.protocol.clone();
+        let (tx, rx) = oneshot::channel();
 
         info!("Starting MCP server on {}:{}", host, port);
 
-        HttpServer::new(move || {
+        let server = HttpServer::new(move || {
             App::new()
                 .app_data(web::Data::new(protocol.clone()))
                 .route("/mcp", web::get().to(handle_connection))
         })
         .bind((host, port))?
-        .run()
-        .await
+        .workers(4) // Reduce number of workers
+        .run();
+
+        // Get the server handle
+        let handle = server.handle();
+
+        // Spawn the server in the background
+        tokio::spawn(server);
+
+        // Wait a moment for the server to start
+        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+
+        // Check if server is running
+        if handle.is_running() {
+            Ok(())
+        } else {
+            Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                "Server failed to start",
+            ))
+        }
     }
 }
 
