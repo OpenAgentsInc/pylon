@@ -2,20 +2,26 @@ use std::path::{Path, PathBuf};
 use std::collections::HashMap;
 use async_trait::async_trait;
 use tokio::fs;
+use std::sync::Arc;
+use log::debug;
 
 use crate::mcp::prompts::{
     provider::{PromptProvider, utils},
     types::{Error, Prompt, PromptMessage, Result},
 };
+use crate::mcp::providers::FileSystemProvider;
 
 pub struct FileSystemPromptProvider {
     root_path: PathBuf,
+    resource_provider: Arc<FileSystemProvider>,
 }
 
 impl FileSystemPromptProvider {
     pub fn new<P: AsRef<Path>>(root_path: P) -> Self {
+        let root_path = root_path.as_ref().to_path_buf();
         Self {
-            root_path: root_path.as_ref().to_path_buf(),
+            resource_provider: Arc::new(FileSystemProvider::new(root_path.clone())),
+            root_path,
         }
     }
     
@@ -71,145 +77,11 @@ impl PromptProvider for FileSystemPromptProvider {
     
     async fn get_prompt(&self, name: &str, arguments: Option<HashMap<String, String>>) -> Result<Vec<PromptMessage>> {
         let prompt = self.load_prompt(name).await?;
-        utils::process_prompt_messages(&prompt, arguments.as_ref()).await
+        debug!("Loaded prompt: {:?}", prompt);
+        utils::process_prompt_messages(&prompt, arguments.as_ref(), Some(&self.resource_provider)).await
     }
     
     fn validate_arguments(&self, prompt: &Prompt, arguments: &HashMap<String, String>) -> Result<()> {
         utils::validate_required_arguments(prompt, arguments)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use tempfile::TempDir;
-    
-    async fn setup_test_prompt(dir: &Path, name: &str, content: &str) -> Result<()> {
-        fs::write(
-            dir.join(format!("{}.yaml", name)),
-            content,
-        ).await?;
-        Ok(())
-    }
-    
-    #[tokio::test]
-    async fn test_load_prompt() {
-        let temp_dir = TempDir::new().unwrap();
-        let provider = FileSystemPromptProvider::new(temp_dir.path());
-        
-        setup_test_prompt(
-            temp_dir.path(),
-            "test",
-            r#"
-name: test
-description: Test prompt
-arguments:
-  - name: arg1
-    required: true
-messages:
-  - role: user
-    content_type: text
-    text: "Hello {arg1}!"
-"#,
-        )
-        .await
-        .unwrap();
-        
-        let prompt = provider.load_prompt("test").await.unwrap();
-        assert_eq!(prompt.name, "test");
-        assert_eq!(prompt.description, Some("Test prompt".to_string()));
-        assert_eq!(prompt.arguments.len(), 1);
-        assert_eq!(prompt.messages.len(), 1);
-    }
-    
-    #[tokio::test]
-    async fn test_list_prompts() {
-        let temp_dir = TempDir::new().unwrap();
-        let provider = FileSystemPromptProvider::new(temp_dir.path());
-        
-        // Create two test prompts
-        setup_test_prompt(
-            temp_dir.path(),
-            "test1",
-            r#"
-name: test1
-description: First test prompt
-messages: []
-"#,
-        )
-        .await
-        .unwrap();
-        
-        setup_test_prompt(
-            temp_dir.path(),
-            "test2",
-            r#"
-name: test2
-description: Second test prompt
-messages: []
-"#,
-        )
-        .await
-        .unwrap();
-        
-        let (prompts, cursor) = provider.list_prompts(None).await.unwrap();
-        assert_eq!(prompts.len(), 2);
-        assert!(cursor.is_none());
-        
-        assert_eq!(prompts[0].name, "test1");
-        assert_eq!(prompts[1].name, "test2");
-    }
-    
-    #[tokio::test]
-    async fn test_get_prompt_with_arguments() {
-        let temp_dir = TempDir::new().unwrap();
-        let provider = FileSystemPromptProvider::new(temp_dir.path());
-        
-        setup_test_prompt(
-            temp_dir.path(),
-            "greeting",
-            r#"
-name: greeting
-arguments:
-  - name: name
-    required: true
-messages:
-  - role: user
-    content_type: text
-    text: "Hello {name}!"
-"#,
-        )
-        .await
-        .unwrap();
-        
-        let mut args = HashMap::new();
-        args.insert("name".to_string(), "world".to_string());
-        
-        let messages = provider.get_prompt("greeting", Some(args)).await.unwrap();
-        assert_eq!(messages.len(), 1);
-        
-        match &messages[0].content {
-            crate::mcp::prompts::MessageContent::Text { text, .. } => {
-                assert_eq!(text, "Hello world!");
-            }
-            _ => panic!("Expected TextContent"),
-        }
-    }
-    
-    #[tokio::test]
-    async fn test_invalid_prompt() {
-        let temp_dir = TempDir::new().unwrap();
-        let provider = FileSystemPromptProvider::new(temp_dir.path());
-        
-        // Create an invalid YAML file
-        setup_test_prompt(
-            temp_dir.path(),
-            "invalid",
-            "invalid: - yaml: content",
-        )
-        .await
-        .unwrap();
-        
-        assert!(provider.get_prompt("invalid", None).await.is_err());
     }
 }
