@@ -174,8 +174,7 @@ async fn test_prompt_with_resource() {
     // Create a prompt that references the resource
     tokio::fs::write(
         temp_dir.path().join("test.yaml"),
-        format!(
-            r#"
+        r#"
 name: test
 arguments:
   - name: resource_path
@@ -186,11 +185,10 @@ messages:
     type: resource
     resource:
       type: Text
-      uri: "{{{{resource_path}}}}"
+      uri: "{resource_path}"
       text: ""
       mime_type: text/plain
-"#
-        ),
+"#,
     )
     .await
     .unwrap();
