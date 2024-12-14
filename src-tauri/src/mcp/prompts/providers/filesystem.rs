@@ -98,7 +98,8 @@ impl PromptProvider for FileSystemPromptProvider {
 mod tests {
     use super::*;
     use tempfile::TempDir;
-    use crate::mcp::protocol::types::{Role, TextContent, MessageContent};
+    use crate::mcp::types::{Role, TextContent};
+    use crate::mcp::prompts::MessageContent;
     
     async fn setup_test_prompt(dir: &Path, name: &str, content: &str) -> Result<()> {
         fs::write(
