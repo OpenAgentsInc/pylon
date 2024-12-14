@@ -48,21 +48,6 @@ impl FileSystemPromptProvider {
         
         Ok(entries)
     }
-    
-    async fn load_resource(&self, uri: &str) -> Result<String> {
-        // For now, only support file:// URIs
-        if !uri.starts_with("file://") {
-            return Err(Error::ResourceError(format!(
-                "Unsupported URI scheme: {}",
-                uri
-            )));
-        }
-        
-        let path = uri.trim_start_matches("file://");
-        fs::read_to_string(path)
-            .await
-            .map_err(|e| Error::ResourceError(format!("Failed to read resource: {}", e)))
-    }
 }
 
 #[async_trait]
@@ -98,8 +83,6 @@ impl PromptProvider for FileSystemPromptProvider {
 mod tests {
     use super::*;
     use tempfile::TempDir;
-    use crate::mcp::types::{Role, TextContent};
-    use crate::mcp::prompts::MessageContent;
     
     async fn setup_test_prompt(dir: &Path, name: &str, content: &str) -> Result<()> {
         fs::write(
@@ -128,6 +111,7 @@ messages:
     content:
       type: text
       text: "Hello {arg1}!"
+      content_type: text
 "#,
         )
         .await
@@ -149,7 +133,11 @@ messages:
         setup_test_prompt(
             temp_dir.path(),
             "test1",
-            "name: test1\ndescription: First test prompt",
+            r#"
+name: test1
+description: First test prompt
+messages: []
+"#,
         )
         .await
         .unwrap();
@@ -157,7 +145,11 @@ messages:
         setup_test_prompt(
             temp_dir.path(),
             "test2",
-            "name: test2\ndescription: Second test prompt",
+            r#"
+name: test2
+description: Second test prompt
+messages: []
+"#,
         )
         .await
         .unwrap();
@@ -188,6 +180,7 @@ messages:
     content:
       type: text
       text: "Hello {name}!"
+      content_type: text
 "#,
         )
         .await
@@ -200,7 +193,7 @@ messages:
         assert_eq!(messages.len(), 1);
         
         match &messages[0].content {
-            MessageContent::Text(text) => {
+            crate::mcp::prompts::MessageContent::Text(text) => {
                 assert_eq!(text.text, "Hello world!");
             }
             _ => panic!("Expected TextContent"),
