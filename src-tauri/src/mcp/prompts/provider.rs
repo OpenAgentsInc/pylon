@@ -27,15 +27,28 @@ pub(crate) mod utils {
         arguments: &HashMap<String, String>,
     ) -> Result<PromptMessage> {
         let content = match &message.content {
-            MessageContent::Text(text) => {
-                let processed_text = substitute_template(&text.text, arguments)?;
-                MessageContent::Text(text.clone().with_text(processed_text))
+            MessageContent::Text { text, annotations } => {
+                let processed_text = substitute_template(text, arguments)?;
+                MessageContent::Text {
+                    text: processed_text,
+                    annotations: annotations.clone(),
+                }
             }
-            MessageContent::Resource(resource) => {
-                let processed_uri = substitute_template(&resource.resource.uri(), arguments)?;
-                MessageContent::Resource(resource.clone().with_uri(processed_uri))
+            MessageContent::Resource { r#type, resource, annotations } => {
+                let processed_uri = substitute_template(&resource.uri(), arguments)?;
+                let mut new_resource = resource.clone();
+                new_resource.set_uri(processed_uri);
+                MessageContent::Resource {
+                    r#type: r#type.clone(),
+                    resource: new_resource,
+                    annotations: annotations.clone(),
+                }
             }
-            MessageContent::Image(image) => MessageContent::Image(image.clone()),
+            MessageContent::Image { data, mime_type, annotations } => MessageContent::Image {
+                data: data.clone(),
+                mime_type: mime_type.clone(),
+                annotations: annotations.clone(),
+            },
         };
         
         Ok(PromptMessage {
@@ -78,7 +91,7 @@ pub(crate) mod utils {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::mcp::types::{Role, TextContent};
+    use crate::mcp::types::Role;
     use crate::mcp::prompts::MessageContent;
     
     #[test]
@@ -132,11 +145,10 @@ mod tests {
             messages: vec![
                 PromptMessage {
                     role: Role::User,
-                    content: MessageContent::Text(TextContent {
+                    content: MessageContent::Text {
                         text: "Hello {name}!".to_string(),
-                        content_type: "text".to_string(),
                         annotations: None,
-                    }),
+                    },
                 },
             ],
         };
@@ -148,8 +160,8 @@ mod tests {
         assert_eq!(processed.len(), 1);
         
         match &processed[0].content {
-            MessageContent::Text(text) => {
-                assert_eq!(text.text, "Hello world!");
+            MessageContent::Text { text, .. } => {
+                assert_eq!(text, "Hello world!");
             }
             _ => panic!("Expected TextContent"),
         }
