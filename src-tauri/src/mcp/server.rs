@@ -23,6 +23,10 @@ impl MCPServer {
         }
     }
 
+    pub fn get_handler(&self) -> Arc<RequestHandler> {
+        self.handler.clone()
+    }
+
     pub fn configure(self) -> impl Fn(&mut web::ServiceConfig) + Clone {
         let handler = self.handler;
         move |cfg: &mut web::ServiceConfig| {
