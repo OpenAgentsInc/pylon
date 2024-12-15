@@ -4,6 +4,7 @@
 use std::env;
 use log::info;
 use actix_web::{App, HttpServer};
+use actix_rt;
 
 use pylon_lib::mcp::prompts::FileSystemPromptProvider;
 use pylon_lib::mcp::server::MCPServer;
@@ -32,14 +33,14 @@ async fn main() {
     // Create and start the server in a background task
     let server_handle = {
         let configure = mcp_server.configure();
-        tokio::spawn(async move {
-            HttpServer::new(move || {
+        actix_rt::spawn(async move {
+            let server = HttpServer::new(move || {
                 App::new().configure(configure.clone())
             })
             .workers(4)
-            .bind(format!("0.0.0.0:{}", port))?
-            .run()
-            .await
+            .bind(format!("0.0.0.0:{}", port))?;
+            
+            server.run().await
         })
     };
 
