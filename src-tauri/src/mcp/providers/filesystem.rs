@@ -6,6 +6,7 @@ use notify::{RecommendedWatcher, Watcher, RecursiveMode};
 use async_trait::async_trait;
 use url::Url;
 use mime_guess::from_path;
+use log::info;
 
 use super::{ResourceProvider, ResourceError};
 use crate::mcp::types::{Resource, ResourceContents, TextResourceContents};
@@ -17,6 +18,7 @@ pub struct FileSystemProvider {
 
 impl FileSystemProvider {
     pub fn new(root_path: PathBuf) -> Self {
+        info!("Initializing FileSystemProvider with root path: {:?}", root_path);
         Self {
             root_path,
             watchers: Arc::new(RwLock::new(HashMap::new())),
@@ -30,14 +32,21 @@ impl FileSystemProvider {
             self.root_path.join(path)
         };
         
+        // Log the path being validated
+        info!("Validating path: {:?}", path);
+        
         // Canonicalize to resolve any .. or symlinks
         let canonical = path.canonicalize()
             .map_err(|e| ResourceError::InvalidPath(e.to_string()))?;
             
+        // Log the canonical path
+        info!("Canonical path: {:?}", canonical);
+        info!("Root path: {:?}", self.root_path);
+            
         // Verify it's under root_path
         if !canonical.starts_with(&self.root_path) {
             return Err(ResourceError::AccessDenied(
-                "Path is outside root directory".into()
+                format!("Path {:?} is outside root directory {:?}", canonical, self.root_path)
             ));
         }
         
@@ -83,6 +92,7 @@ impl ResourceProvider for FileSystemProvider {
     }
 
     async fn list(&self, path: &str) -> Result<Vec<Resource>, ResourceError> {
+        info!("Listing directory: {}", path);
         let path = self.validate_path(path)?;
         
         let mut entries = Vec::new();
@@ -115,10 +125,12 @@ impl ResourceProvider for FileSystemProvider {
             });
         }
         
+        info!("Found {} entries in {}", entries.len(), path.display());
         Ok(entries)
     }
     
     async fn read(&self, path: &str) -> Result<Vec<ResourceContents>, ResourceError> {
+        info!("Reading file: {}", path);
         let path = self.validate_path(path)?;
         let contents = self.read_file_contents(&path).await?;
         Ok(vec![contents])
@@ -136,9 +148,9 @@ impl ResourceProvider for FileSystemProvider {
             match res {
                 Ok(event) => {
                     // Handle file system events
-                    println!("Event: {:?}", event);
+                    info!("File system event: {:?}", event);
                 },
-                Err(e) => println!("Watch error: {:?}", e),
+                Err(e) => info!("Watch error: {:?}", e),
             }
         }).map_err(ResourceError::WatchError)?;
         
