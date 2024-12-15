@@ -1,4 +1,4 @@
-use log::{debug, info};
+use log::{debug, info, error};
 use serde_json::Value;
 use std::collections::HashMap;
 
@@ -8,6 +8,7 @@ use crate::mcp::{
     clients::{ClientManager, ClientInfo, ClientCapabilities},
     types::{Implementation},
 };
+use super::types::create_error_response;
 
 pub struct RequestHandler {
     client_manager: ClientManager,
@@ -19,6 +20,30 @@ impl RequestHandler {
         Self {
             client_manager,
             prompt_provider,
+        }
+    }
+
+    pub async fn handle_message(
+        &self,
+        client_id: &str,
+        message: &str,
+    ) -> Result<String, Box<dyn std::error::Error>> {
+        let request: JsonRpcRequest = serde_json::from_str(message)?;
+        debug!("Handling message from {}: {}", client_id, request.method);
+
+        match request.method.as_str() {
+            "initialize" => self.handle_initialize(&request, client_id).await,
+            "prompts/list" => self.handle_list_prompts(&request).await,
+            "prompts/get" => self.handle_get_prompt(&request).await,
+            "ping" => self.handle_ping(&request).await,
+            _ => {
+                error!("Unknown method: {}", request.method);
+                Ok(create_error_response(
+                    request.id,
+                    -32601,
+                    "Method not found".to_string(),
+                ))
+            }
         }
     }
 
