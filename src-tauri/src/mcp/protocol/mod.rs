@@ -5,13 +5,13 @@ mod tests;
 
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::env;
 use log::{info, debug};
 
 use crate::mcp::clients::ClientManager;
 use crate::mcp::providers::{
     filesystem::FileSystemProvider,
     ollama::OllamaProvider,
+    roots::get_root_paths,
 };
 use crate::mcp::types::*;
 
@@ -35,23 +35,19 @@ impl MCPProtocol {
     pub fn new() -> Self {
         let ollama_provider = Arc::new(OllamaProvider::default());
 
-        // Get the project root directory
-        let root_path = env::current_dir()
-            .map(|mut d| {
-                // Log the initial directory
-                debug!("Initial directory: {:?}", d);
-                
-                // If we're in src-tauri, go up one level
-                if d.ends_with("src-tauri") {
-                    d.pop();
-                }
-                
-                // Log the final directory
-                info!("Using root path: {:?}", d);
-                d
-            })
-            .unwrap_or_else(|e| {
-                info!("Failed to get current directory: {}, using '.'", e);
+        // Get the configured root paths
+        let root_paths = get_root_paths();
+        
+        // Log the root paths
+        for path in &root_paths {
+            info!("Using root path: {:?}", path);
+        }
+        
+        // Use the first root path as the default
+        let root_path = root_paths.first()
+            .cloned()
+            .unwrap_or_else(|| {
+                info!("No valid root paths found, using '.'");
                 PathBuf::from(".")
             });
 
