@@ -2,27 +2,27 @@ use log::{debug, info};
 use serde_json::Value;
 use std::collections::HashMap;
 
-use crate::mcp::prompts::FileSystemPromptProvider;
+use crate::mcp::prompts::{provider::PromptProvider, FileSystemPromptProvider};
 use crate::mcp::types::{JsonRpcRequest, JSONRPC_VERSION};
 use crate::mcp::{
-    clients::ClientManager,
-    types::{Implementation, Role},
+    clients::{ClientManager, ClientInfo, ClientCapabilities},
+    types::{Implementation},
 };
 
-pub(crate) struct RequestHandler {
+pub struct RequestHandler {
     client_manager: ClientManager,
     prompt_provider: FileSystemPromptProvider,
 }
 
 impl RequestHandler {
-    pub(crate) fn new(client_manager: ClientManager, prompt_provider: FileSystemPromptProvider) -> Self {
+    pub fn new(client_manager: ClientManager, prompt_provider: FileSystemPromptProvider) -> Self {
         Self {
             client_manager,
             prompt_provider,
         }
     }
 
-    pub(crate) async fn handle_initialize(
+    pub async fn handle_initialize(
         &self,
         request: &JsonRpcRequest,
         client_id: &str,
@@ -40,8 +40,18 @@ impl RequestHandler {
             client_id, client_info
         );
 
-        // Add the client
-        self.client_manager.add_client(client_id, client_info.clone());
+        // Convert Implementation to ClientInfo
+        let client_info = ClientInfo {
+            name: client_info.name.clone(),
+            version: client_info.version.clone(),
+        };
+
+        // Add the client with default capabilities
+        self.client_manager.add_client(
+            client_id.to_string(), 
+            client_info,
+            ClientCapabilities::default()
+        ).await;
 
         // Send response with server info and capabilities
         let response = serde_json::json!({
@@ -64,7 +74,7 @@ impl RequestHandler {
         Ok(response.to_string())
     }
 
-    pub(crate) async fn handle_get_prompt(
+    pub async fn handle_get_prompt(
         &self,
         request: &JsonRpcRequest,
     ) -> Result<String, Box<dyn std::error::Error>> {
@@ -94,7 +104,7 @@ impl RequestHandler {
         Ok(response.to_string())
     }
 
-    pub(crate) async fn handle_list_prompts(
+    pub async fn handle_list_prompts(
         &self,
         request: &JsonRpcRequest,
     ) -> Result<String, Box<dyn std::error::Error>> {
@@ -118,7 +128,7 @@ impl RequestHandler {
         Ok(response.to_string())
     }
 
-    pub(crate) async fn handle_ping(
+    pub async fn handle_ping(
         &self,
         request: &JsonRpcRequest,
     ) -> Result<String, Box<dyn std::error::Error>> {
