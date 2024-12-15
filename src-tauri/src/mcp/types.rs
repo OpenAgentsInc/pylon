@@ -94,6 +94,7 @@ pub struct InitializeResult {
 pub enum Role {
     Assistant,
     User,
+    System,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
