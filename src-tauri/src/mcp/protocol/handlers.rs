@@ -3,10 +3,10 @@ use serde_json::Value;
 use std::collections::HashMap;
 
 use crate::mcp::prompts::{provider::PromptProvider, FileSystemPromptProvider};
-use crate::mcp::types::{JsonRpcRequest, JSONRPC_VERSION};
+use crate::mcp::types::{JsonRpcRequest, JSONRPC_VERSION, ClientCapabilities};
 use crate::mcp::{
-    clients::{ClientManager, ClientInfo, ClientCapabilities},
-    types::{Implementation},
+    clients::{ClientManager, ClientInfo},
+    types::Implementation,
 };
 use super::types::create_error_response;
 
