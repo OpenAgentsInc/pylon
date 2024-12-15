@@ -28,6 +28,8 @@ impl MCPProtocol {
             "resource/unwatch" => self.handle_unwatch_resource(&request).await,
             "ollama/chat" => self.handle_ollama_chat(&request).await,
             "ollama/models" => self.handle_ollama_models(&request).await,
+            "prompts/list" => self.handle_list_prompts(&request).await,
+            "prompts/get" => self.handle_get_prompt(&request).await,
             _ => {
                 error!("Unknown method: {}", request.method);
                 Ok(create_error_response(
@@ -37,6 +39,45 @@ impl MCPProtocol {
                 ))
             }
         }
+    }
+
+    pub(crate) async fn handle_list_prompts(
+        &self,
+        request: &JsonRpcRequest,
+    ) -> Result<String, Box<dyn std::error::Error>> {
+        let prompts = self.prompt_provider.list_prompts(None).await?;
+        let response = serde_json::json!({
+            "jsonrpc": JSONRPC_VERSION,
+            "id": request.id,
+            "result": {
+                "prompts": prompts.0,
+                "cursor": prompts.1
+            }
+        });
+        Ok(serde_json::to_string(&response)?)
+    }
+
+    pub(crate) async fn handle_get_prompt(
+        &self,
+        request: &JsonRpcRequest,
+    ) -> Result<String, Box<dyn std::error::Error>> {
+        #[derive(serde::Deserialize)]
+        struct GetPromptParams {
+            name: String,
+            arguments: Option<std::collections::HashMap<String, String>>,
+        }
+
+        let params: GetPromptParams = serde_json::from_value(request.params.clone())?;
+        let messages = self.prompt_provider.get_prompt(&params.name, params.arguments).await?;
+        
+        let response = serde_json::json!({
+            "jsonrpc": JSONRPC_VERSION,
+            "id": request.id,
+            "result": {
+                "messages": messages
+            }
+        });
+        Ok(serde_json::to_string(&response)?)
     }
 
     pub(crate) async fn handle_ollama_chat(&self, request: &JsonRpcRequest) -> Result<String, Box<dyn std::error::Error>> {
