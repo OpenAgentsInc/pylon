@@ -8,7 +8,8 @@ use tokio::sync::RwLock;
 
 use pylon_lib::mcp::prompts::FileSystemPromptProvider;
 use pylon_lib::mcp::server::MCPServer;
-use pylon_lib::start_server;
+
+mod commands;
 
 #[tokio::main]
 async fn main() {
@@ -25,10 +26,37 @@ async fn main() {
     // Create the prompt provider with the current directory
     let prompt_provider = FileSystemPromptProvider::new("prompts");
     
-    // Create and start the server
-    let server_result = start_server("0.0.0.0", port).await;
-    
-    if let Err(e) = server_result {
+    // Create the MCP server
+    let mcp_server = MCPServer::new(prompt_provider);
+    let handler = Arc::new(mcp_server.get_handler());
+
+    // Create and start the server in a background task
+    let server_handle = {
+        let handler = handler.clone();
+        tokio::spawn(async move {
+            let configure = mcp_server.configure();
+            HttpServer::new(move || {
+                App::new().configure(configure.clone())
+            })
+            .workers(4)
+            .bind(format!("0.0.0.0:{}", port))?
+            .run()
+            .await
+        })
+    };
+
+    // Start Tauri application
+    tauri::Builder::default()
+        .plugin(tauri_plugin_shell::init())
+        .manage(handler)
+        .invoke_handler(tauri::generate_handler![
+            commands::get_connected_clients
+        ])
+        .run(tauri::generate_context!())
+        .expect("error while running tauri application");
+
+    // Wait for server to finish
+    if let Err(e) = server_handle.await {
         eprintln!("Server error: {}", e);
         std::process::exit(1);
     }
