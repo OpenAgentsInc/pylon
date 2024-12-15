@@ -4,6 +4,7 @@
 use std::env;
 use log::info;
 use actix_web::{App, HttpServer};
+use tokio::task::LocalSet;
 use actix_rt;
 
 use pylon_lib::mcp::prompts::FileSystemPromptProvider;
@@ -30,19 +31,26 @@ async fn main() {
     let mcp_server = MCPServer::new(prompt_provider);
     let handler = mcp_server.get_handler();
 
+    // Create a LocalSet for running non-Send futures
+    let local = LocalSet::new();
+    
     // Create and start the server in a background task
-    let server_handle = {
+    let server_handle = local.spawn_local(async move {
         let configure = mcp_server.configure();
-        actix_rt::spawn(async move {
-            let server = HttpServer::new(move || {
-                App::new().configure(configure.clone())
-            })
-            .workers(4)
-            .bind(format!("0.0.0.0:{}", port))?;
-            
-            server.run().await
+        let server = HttpServer::new(move || {
+            App::new().configure(configure.clone())
         })
-    };
+        .workers(4)
+        .bind(format!("0.0.0.0:{}", port))
+        .expect("Failed to bind server");
+            
+        server.run().await
+    });
+
+    // Run the local set in the background
+    tokio::spawn(async move {
+        local.await;
+    });
 
     // Start Tauri application
     tauri::Builder::default()
@@ -55,7 +63,7 @@ async fn main() {
         .expect("error while running tauri application");
 
     // Wait for server to finish
-    if let Err(e) = server_handle.await.unwrap() {
+    if let Err(e) = server_handle.await {
         eprintln!("Server error: {}", e);
         std::process::exit(1);
     }
