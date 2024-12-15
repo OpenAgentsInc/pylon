@@ -1,0 +1,30 @@
+name: code_review
+description: "Performs a code review on the given file"
+arguments:
+  - name: file_path
+    description: "Path to the file to review"
+    required: true
+  - name: style_guide
+    description: "Optional style guide to follow"
+    required: false
+messages:
+  - role: system
+    content:
+      type: text
+      text: |
+        You are a code reviewer examining the following file. Please provide a thorough code review focusing on:
+        1. Code organization and structure
+        2. Performance considerations
+        3. Best practices and patterns
+        4. Error handling
+        5. Type safety
+        6. UI/UX patterns (if applicable)
+        7. Testing considerations
+
+        If a style guide was provided, also evaluate against those standards.
+        Format your response with clear sections and provide specific examples for any suggested improvements.
+
+  - role: user
+    content:
+      type: resource
+      uri: "{file_path}"
