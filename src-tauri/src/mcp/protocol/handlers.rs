@@ -2,6 +2,7 @@ use log::{error, info, debug};
 use crate::mcp::types::*;
 use crate::mcp::clients::ClientInfo;
 use crate::mcp::providers::ResourceProvider;
+use crate::mcp::prompts::provider::PromptProvider;
 use super::{MCPProtocol, types::*};
 
 impl MCPProtocol {
