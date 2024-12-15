@@ -17,8 +17,7 @@ pub async fn start_server(host: &str, port: u16) -> std::io::Result<()> {
 
     // Start the HTTP server
     HttpServer::new(move || {
-        let app = App::new();
-        configure(app.into_config())
+        App::new().configure(configure.clone())
     })
     .bind(format!("{}:{}", host, port))?
     .run()
