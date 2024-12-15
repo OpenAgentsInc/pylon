@@ -1,6 +1,6 @@
 use tauri::State;
 use std::sync::Arc;
-use crate::mcp::protocol::RequestHandler;
+use pylon_lib::mcp::protocol::RequestHandler;
 
 #[tauri::command]
 pub async fn get_connected_clients(handler: State<'_, Arc<RequestHandler>>) -> Result<Vec<String>, String> {
