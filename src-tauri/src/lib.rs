@@ -19,6 +19,7 @@ pub async fn start_server(host: &str, port: u16) -> std::io::Result<()> {
     HttpServer::new(move || {
         App::new().configure(configure.clone())
     })
+    .workers(4)
     .bind(format!("{}:{}", host, port))?
     .run()
     .await
