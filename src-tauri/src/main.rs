@@ -1,7 +1,6 @@
 // Prevents additional console window on Windows in release
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use std::sync::Arc;
 use std::env;
 use log::info;
 use actix_web::{App, HttpServer};
