@@ -4,7 +4,7 @@
 use std::sync::Arc;
 use std::env;
 use log::info;
-use tokio::sync::RwLock;
+use actix_web::{App, HttpServer};
 
 use pylon_lib::mcp::prompts::FileSystemPromptProvider;
 use pylon_lib::mcp::server::MCPServer;
@@ -28,13 +28,12 @@ async fn main() {
     
     // Create the MCP server
     let mcp_server = MCPServer::new(prompt_provider);
-    let handler = Arc::new(mcp_server.get_handler());
+    let handler = mcp_server.get_handler();
 
     // Create and start the server in a background task
     let server_handle = {
-        let handler = handler.clone();
+        let configure = mcp_server.configure();
         tokio::spawn(async move {
-            let configure = mcp_server.configure();
             HttpServer::new(move || {
                 App::new().configure(configure.clone())
             })
@@ -56,7 +55,7 @@ async fn main() {
         .expect("error while running tauri application");
 
     // Wait for server to finish
-    if let Err(e) = server_handle.await {
+    if let Err(e) = server_handle.await.unwrap() {
         eprintln!("Server error: {}", e);
         std::process::exit(1);
     }
