@@ -1,9 +1,9 @@
 use std::sync::Arc;
 use actix_web::{web, HttpRequest, HttpResponse};
 use actix_web::web::{Data, Payload};
-use futures_util::{SinkExt, StreamExt};
+use actix_ws::{self, Message};
+use futures_util::StreamExt;
 use log::{debug, error, info};
-use tokio::sync::RwLock;
 use uuid::Uuid;
 
 use crate::mcp::protocol::RequestHandler;
@@ -40,13 +40,13 @@ async fn handle_connection(
     let client_id = Uuid::new_v4().to_string();
     info!("New WebSocket connection: {}", client_id);
 
-    let (response, mut session, mut msg_stream) = actix_web::web::WebSocket::handle_request(req, payload)?;
+    let (response, mut session, mut msg_stream) = actix_ws::handle(&req, payload)?;
 
     // Spawn task to handle WebSocket messages
     actix_web::rt::spawn(async move {
         while let Some(Ok(msg)) = msg_stream.next().await {
             match msg {
-                actix_web::ws::Message::Text(text) => {
+                Message::Text(text) => {
                     debug!("Received message from {}: {}", client_id, text);
                     match handler.handle_message(&client_id, &text).await {
                         Ok(response) => {
@@ -64,7 +64,7 @@ async fn handle_connection(
                         }
                     }
                 }
-                actix_web::ws::Message::Close(reason) => {
+                Message::Close(reason) => {
                     info!(
                         "Client {} disconnected with reason: {:?}",
                         client_id, reason
