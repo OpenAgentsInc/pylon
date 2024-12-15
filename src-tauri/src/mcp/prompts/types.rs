@@ -24,50 +24,13 @@ pub struct PromptArgument {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PromptMessage {
     pub role: Role,
-    #[serde(flatten)]
-    pub content: MessageContent,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(tag = "content_type")]
-pub enum MessageContent {
-    #[serde(rename = "text")]
-    Text {
-        text: String,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        annotations: Option<Annotations>,
-    },
-    #[serde(rename = "image")]
-    Image {
-        data: Vec<u8>,
-        mime_type: String,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        annotations: Option<Annotations>,
-    },
-    #[serde(rename = "resource")]
-    Resource {
-        r#type: String,
-        resource: ResourceContents,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        annotations: Option<Annotations>,
-    },
-}
-
-impl MessageContent {
-    pub fn with_text(text: String) -> Self {
-        MessageContent::Text {
-            text,
-            annotations: None,
-        }
-    }
-
-    pub fn with_resource(resource: ResourceContents) -> Self {
-        MessageContent::Resource {
-            r#type: "resource".to_string(),
-            resource,
-            annotations: None,
-        }
-    }
+    pub content_type: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub text: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub resource: Option<ResourceContents>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub annotations: Option<Annotations>,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -116,6 +79,7 @@ pub(crate) fn substitute_template(template: &str, arguments: &HashMap<String, St
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::mcp::types::Role;
     
     #[test]
     fn test_template_substitution() {
@@ -139,31 +103,34 @@ mod tests {
     }
 
     #[test]
-    fn test_message_content_serialization() {
-        let text_content = MessageContent::Text {
-            text: "Hello".to_string(),
+    fn test_message_serialization() {
+        let text_message = PromptMessage {
+            role: Role::Assistant,
+            content_type: "text".to_string(),
+            text: Some("Hello".to_string()),
+            resource: None,
             annotations: None,
         };
 
-        let json = serde_json::to_string(&text_content).unwrap();
-        assert_eq!(
-            json,
-            r#"{"content_type":"text","text":"Hello"}"#
-        );
+        let json = serde_json::to_string(&text_message).unwrap();
+        assert!(json.contains(r#""content_type":"text""#));
+        assert!(json.contains(r#""text":"Hello""#));
 
-        let resource_content = MessageContent::Resource {
-            r#type: "resource".to_string(),
-            resource: ResourceContents::Text(crate::mcp::types::TextResourceContents {
+        let resource_message = PromptMessage {
+            role: Role::User,
+            content_type: "resource".to_string(),
+            text: None,
+            resource: Some(ResourceContents::Text(crate::mcp::types::TextResourceContents {
                 uri: "test.txt".to_string(),
                 mime_type: Some("text/plain".to_string()),
                 text: "Hello".to_string(),
-            }),
+            })),
             annotations: None,
         };
 
-        let json = serde_json::to_string(&resource_content).unwrap();
+        let json = serde_json::to_string(&resource_message).unwrap();
         assert!(json.contains(r#""content_type":"resource""#));
-        assert!(json.contains(r#""resource":{"type":"Text""#));
+        assert!(json.contains(r#""type":"Text""#));
     }
 
     #[test]
@@ -178,10 +145,10 @@ mod tests {
             }],
             messages: vec![PromptMessage {
                 role: Role::User,
-                content: MessageContent::Text {
-                    text: "Hello {arg1}!".to_string(),
-                    annotations: None,
-                },
+                content_type: "text".to_string(),
+                text: Some("Hello {arg1}!".to_string()),
+                resource: None,
+                annotations: None,
             }],
         };
 
