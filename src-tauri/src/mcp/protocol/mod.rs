@@ -13,6 +13,7 @@ use crate::mcp::providers::{
     filesystem::FileSystemProvider,
     ollama::OllamaProvider,
 };
+use crate::mcp::prompts::FileSystemPromptProvider;
 use crate::mcp::types::*;
 
 pub use types::*;
@@ -22,6 +23,7 @@ pub struct MCPProtocol {
     server_capabilities: ServerCapabilities,
     fs_provider: Arc<FileSystemProvider>,
     ollama_provider: Arc<OllamaProvider>,
+    prompt_provider: Arc<FileSystemPromptProvider>,
     client_manager: Arc<ClientManager>,
 }
 
@@ -55,6 +57,10 @@ impl MCPProtocol {
                 PathBuf::from(".")
             });
 
+        // Create providers
+        let fs_provider = Arc::new(FileSystemProvider::new(root_path.clone()));
+        let prompt_provider = Arc::new(FileSystemPromptProvider::new(root_path.join("prompts")));
+
         Self {
             server_info: Implementation::default(),
             server_capabilities: ServerCapabilities {
@@ -71,8 +77,9 @@ impl MCPProtocol {
                 }),
                 ..Default::default()
             },
-            fs_provider: Arc::new(FileSystemProvider::new(root_path)),
+            fs_provider,
             ollama_provider,
+            prompt_provider,
             client_manager: Arc::new(ClientManager::new()),
         }
     }
