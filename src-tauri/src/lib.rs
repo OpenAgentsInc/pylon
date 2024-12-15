@@ -1,4 +1,3 @@
-use std::sync::Arc;
 use actix_web::{App, HttpServer};
 use log::info;
 
@@ -18,8 +17,8 @@ pub async fn start_server(host: &str, port: u16) -> std::io::Result<()> {
 
     // Start the HTTP server
     HttpServer::new(move || {
-        App::new()
-            .configure(configure.clone())
+        let app = App::new();
+        configure(app.into_config())
     })
     .bind(format!("{}:{}", host, port))?
     .run()
