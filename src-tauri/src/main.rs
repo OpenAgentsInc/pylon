@@ -5,14 +5,13 @@ use std::env;
 use log::info;
 use actix_web::{App, HttpServer};
 use tokio::task::LocalSet;
-use actix_rt;
 
 use pylon_lib::mcp::prompts::FileSystemPromptProvider;
 use pylon_lib::mcp::server::MCPServer;
 
 mod commands;
 
-#[tokio::main]
+#[actix_web::main]
 async fn main() {
     env_logger::init();
     
@@ -48,9 +47,7 @@ async fn main() {
     });
 
     // Run the local set in the background
-    tokio::spawn(async move {
-        local.await;
-    });
+    actix_web::rt::spawn(local);
 
     // Start Tauri application
     tauri::Builder::default()
