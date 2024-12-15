@@ -6,7 +6,6 @@ use notify::{RecommendedWatcher, Watcher, RecursiveMode};
 use async_trait::async_trait;
 use url::Url;
 use mime_guess::from_path;
-use log::info;
 
 use super::{ResourceProvider, ResourceError};
 use crate::mcp::types::{Resource, ResourceContents, TextResourceContents};
@@ -18,7 +17,6 @@ pub struct FileSystemProvider {
 
 impl FileSystemProvider {
     pub fn new(root_path: PathBuf) -> Self {
-        info!("Initializing FileSystemProvider with root path: {:?}", root_path);
         Self {
             root_path,
             watchers: Arc::new(RwLock::new(HashMap::new())),
@@ -32,21 +30,17 @@ impl FileSystemProvider {
             self.root_path.join(path)
         };
         
-        // Log the path being validated
-        info!("Validating path: {:?}", path);
-        
         // Canonicalize to resolve any .. or symlinks
         let canonical = path.canonicalize()
             .map_err(|e| ResourceError::InvalidPath(e.to_string()))?;
             
-        // Log the canonical path
-        info!("Canonical path: {:?}", canonical);
-        info!("Root path: {:?}", self.root_path);
-            
         // Verify it's under root_path
         if !canonical.starts_with(&self.root_path) {
             return Err(ResourceError::AccessDenied(
-                format!("Path {:?} is outside root directory {:?}", canonical, self.root_path)
+                format!("Path {} is outside root directory {}", 
+                    canonical.display(), 
+                    self.root_path.display()
+                )
             ));
         }
         
@@ -72,16 +66,29 @@ impl FileSystemProvider {
             .first_or_octet_stream()
             .to_string();
             
-        // For now we'll treat everything as text
-        // TODO: Handle binary files properly
+        // Read file contents
         let contents = tokio::fs::read_to_string(path).await
-            .map_err(|e| ResourceError::IoError(e))?;
+            .map_err(|e| match e.kind() {
+                std::io::ErrorKind::NotFound => 
+                    ResourceError::NotFound(format!("File not found: {}", path.display())),
+                std::io::ErrorKind::PermissionDenied => 
+                    ResourceError::AccessDenied(format!("Permission denied: {}", path.display())),
+                _ => ResourceError::IoError(e)
+            })?;
             
         Ok(ResourceContents::Text(TextResourceContents {
             uri,
             mime_type: Some(mime_type),
             text: contents,
         }))
+    }
+
+    fn get_relative_path(&self, path: &Path) -> String {
+        path.strip_prefix(&self.root_path)
+            .ok()
+            .and_then(|p| p.to_str())
+            .unwrap_or("")
+            .to_string()
     }
 }
 
@@ -92,7 +99,6 @@ impl ResourceProvider for FileSystemProvider {
     }
 
     async fn list(&self, path: &str) -> Result<Vec<Resource>, ResourceError> {
-        info!("Listing directory: {}", path);
         let path = self.validate_path(path)?;
         
         let mut entries = Vec::new();
@@ -107,6 +113,7 @@ impl ResourceProvider for FileSystemProvider {
                 
             let name = entry.file_name().to_string_lossy().into_owned();
             let uri = self.path_to_uri(&entry.path())?;
+            let relative_path = self.get_relative_path(&entry.path());
             
             let mime_type = if metadata.is_file() {
                 Some(from_path(&entry.path())
@@ -120,17 +127,15 @@ impl ResourceProvider for FileSystemProvider {
                 name,
                 uri,
                 mime_type,
-                description: None,
+                description: Some(relative_path),
                 annotations: None,
             });
         }
         
-        info!("Found {} entries in {}", entries.len(), path.display());
         Ok(entries)
     }
     
     async fn read(&self, path: &str) -> Result<Vec<ResourceContents>, ResourceError> {
-        info!("Reading file: {}", path);
         let path = self.validate_path(path)?;
         let contents = self.read_file_contents(&path).await?;
         Ok(vec![contents])
@@ -148,9 +153,9 @@ impl ResourceProvider for FileSystemProvider {
             match res {
                 Ok(event) => {
                     // Handle file system events
-                    info!("File system event: {:?}", event);
+                    println!("Event: {:?}", event);
                 },
-                Err(e) => info!("Watch error: {:?}", e),
+                Err(e) => println!("Watch error: {:?}", e),
             }
         }).map_err(ResourceError::WatchError)?;
         
