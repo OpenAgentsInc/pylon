@@ -23,7 +23,7 @@ impl MCPServer {
         }
     }
 
-    pub fn configure(self) -> impl FnOnce(&mut web::ServiceConfig) + Clone {
+    pub fn configure(self) -> impl Fn(&mut web::ServiceConfig) + Clone {
         let handler = self.handler;
         move |cfg: &mut web::ServiceConfig| {
             cfg.app_data(Data::new(handler.clone()))
