@@ -20,7 +20,7 @@ pub trait PromptProvider {
 /// Default implementations for common provider functionality
 pub(crate) mod utils {
     use super::*;
-    use crate::mcp::prompts::types::{MessageContent, substitute_template};
+    use crate::mcp::prompts::types::substitute_template;
     use crate::mcp::providers::ResourceProvider;
     use std::sync::Arc;
     
@@ -30,70 +30,84 @@ pub(crate) mod utils {
         arguments: &HashMap<String, String>,
         resource_provider: Option<&Arc<dyn ResourceProvider>>,
     ) -> Result<PromptMessage> {
-        let content = match &message.content {
-            MessageContent::Text { text, annotations } => {
-                let processed_text = substitute_template(text, arguments)?;
-                MessageContent::Text {
-                    text: processed_text,
-                    annotations: annotations.clone(),
+        match message.content_type.as_str() {
+            "text" => {
+                if let Some(text) = &message.text {
+                    let processed_text = substitute_template(text, arguments)?;
+                    Ok(PromptMessage {
+                        role: message.role.clone(),
+                        content_type: "text".to_string(),
+                        text: Some(processed_text),
+                        resource: None,
+                        annotations: message.annotations.clone(),
+                    })
+                } else {
+                    Err(Error::InvalidTemplate("Text message missing text field".to_string()))
                 }
             }
-            MessageContent::Resource { r#type, resource, annotations } => {
-                let processed_uri = substitute_template(&resource.uri(), arguments)?;
-                debug!("Processed resource URI: {}", processed_uri);
+            "resource" => {
+                if let Some(resource) = &message.resource {
+                    let processed_uri = substitute_template(&resource.uri(), arguments)?;
+                    debug!("Processed resource URI: {}", processed_uri);
 
-                // If we have a resource provider, try to read the resource
-                if let Some(provider) = resource_provider {
-                    debug!("Reading resource from provider");
-                    match provider.read(&processed_uri).await {
-                        Ok(contents) => {
-                            debug!("Got resource contents: {:?}", contents);
-                            if let Some(content) = contents.first() {
-                                MessageContent::Resource {
-                                    r#type: r#type.clone(),
-                                    resource: content.clone(),
-                                    annotations: annotations.clone(),
-                                }
-                            } else {
-                                debug!("No resource contents returned");
-                                MessageContent::Resource {
-                                    r#type: r#type.clone(),
-                                    resource: resource.clone(),
-                                    annotations: annotations.clone(),
+                    // If we have a resource provider, try to read the resource
+                    if let Some(provider) = resource_provider {
+                        debug!("Reading resource from provider");
+                        match provider.read(&processed_uri).await {
+                            Ok(contents) => {
+                                debug!("Got resource contents: {:?}", contents);
+                                if let Some(content) = contents.first() {
+                                    Ok(PromptMessage {
+                                        role: message.role.clone(),
+                                        content_type: "resource".to_string(),
+                                        text: None,
+                                        resource: Some(content.clone()),
+                                        annotations: message.annotations.clone(),
+                                    })
+                                } else {
+                                    debug!("No resource contents returned");
+                                    let mut new_resource = resource.clone();
+                                    new_resource.set_uri(processed_uri);
+                                    Ok(PromptMessage {
+                                        role: message.role.clone(),
+                                        content_type: "resource".to_string(),
+                                        text: None,
+                                        resource: Some(new_resource),
+                                        annotations: message.annotations.clone(),
+                                    })
                                 }
                             }
-                        }
-                        Err(e) => {
-                            debug!("Error reading resource: {:?}", e);
-                            MessageContent::Resource {
-                                r#type: r#type.clone(),
-                                resource: resource.clone(),
-                                annotations: annotations.clone(),
+                            Err(e) => {
+                                debug!("Error reading resource: {:?}", e);
+                                let mut new_resource = resource.clone();
+                                new_resource.set_uri(processed_uri);
+                                Ok(PromptMessage {
+                                    role: message.role.clone(),
+                                    content_type: "resource".to_string(),
+                                    text: None,
+                                    resource: Some(new_resource),
+                                    annotations: message.annotations.clone(),
+                                })
                             }
                         }
+                    } else {
+                        debug!("No resource provider available");
+                        let mut new_resource = resource.clone();
+                        new_resource.set_uri(processed_uri);
+                        Ok(PromptMessage {
+                            role: message.role.clone(),
+                            content_type: "resource".to_string(),
+                            text: None,
+                            resource: Some(new_resource),
+                            annotations: message.annotations.clone(),
+                        })
                     }
                 } else {
-                    debug!("No resource provider available");
-                    let mut new_resource = resource.clone();
-                    new_resource.set_uri(processed_uri);
-                    MessageContent::Resource {
-                        r#type: r#type.clone(),
-                        resource: new_resource,
-                        annotations: annotations.clone(),
-                    }
+                    Err(Error::InvalidTemplate("Resource message missing resource field".to_string()))
                 }
             }
-            MessageContent::Image { data, mime_type, annotations } => MessageContent::Image {
-                data: data.clone(),
-                mime_type: mime_type.clone(),
-                annotations: annotations.clone(),
-            },
-        };
-        
-        Ok(PromptMessage {
-            role: message.role.clone(),
-            content,
-        })
+            _ => Err(Error::InvalidTemplate(format!("Unknown content type: {}", message.content_type))),
+        }
     }
     
     /// Validate required arguments are present
@@ -131,8 +145,7 @@ pub(crate) mod utils {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::mcp::types::Role;
-    use crate::mcp::prompts::MessageContent;
+    use crate::mcp::types::{Role, ResourceContents, TextResourceContents};
     
     #[test]
     fn test_validate_required_arguments() {
@@ -185,10 +198,10 @@ mod tests {
             messages: vec![
                 PromptMessage {
                     role: Role::User,
-                    content: MessageContent::Text {
-                        text: "Hello {name}!".to_string(),
-                        annotations: None,
-                    },
+                    content_type: "text".to_string(),
+                    text: Some("Hello {name}!".to_string()),
+                    resource: None,
+                    annotations: None,
                 },
             ],
         };
@@ -199,11 +212,30 @@ mod tests {
         let processed = utils::process_prompt_messages(&prompt, Some(&args), None).await.unwrap();
         assert_eq!(processed.len(), 1);
         
-        match &processed[0].content {
-            MessageContent::Text { text, .. } => {
-                assert_eq!(text, "Hello world!");
-            }
-            _ => panic!("Expected TextContent"),
-        }
+        assert_eq!(processed[0].content_type, "text");
+        assert_eq!(processed[0].text.as_ref().unwrap(), "Hello world!");
+    }
+
+    #[tokio::test]
+    async fn test_process_resource_message() {
+        let message = PromptMessage {
+            role: Role::User,
+            content_type: "resource".to_string(),
+            text: None,
+            resource: Some(ResourceContents::Text(TextResourceContents {
+                uri: "test/{name}.txt".to_string(),
+                mime_type: Some("text/plain".to_string()),
+                text: "Hello".to_string(),
+            })),
+            annotations: None,
+        };
+
+        let mut args = HashMap::new();
+        args.insert("name".to_string(), "world".to_string());
+
+        let processed = utils::process_message_template(&message, &args, None).await.unwrap();
+        assert_eq!(processed.content_type, "resource");
+        assert!(processed.resource.is_some());
+        assert_eq!(processed.resource.unwrap().uri(), "test/world.txt");
     }
 }
