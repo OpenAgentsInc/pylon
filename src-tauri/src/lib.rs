@@ -1,14 +1,27 @@
 use std::sync::Arc;
+use actix_web::{App, HttpServer};
+use log::info;
+
+use crate::mcp::prompts::FileSystemPromptProvider;
 
 pub mod mcp;
-pub mod utils;
 
-#[cfg(test)]
-pub mod tests;
+pub async fn start_server(host: &str, port: u16) -> std::io::Result<()> {
+    info!("Starting MCP server on {}:{}", host, port);
 
-pub async fn start_mcp_server(host: String, port: u16) -> std::io::Result<()> {
-    let mcp_server = Arc::new(mcp::server::MCPServer::new());
+    // Create the prompt provider with the current directory
+    let prompt_provider = FileSystemPromptProvider::new("prompts");
     
-    // Run the server directly instead of spawning
-    mcp_server.start(&host, port).await
+    // Create the MCP server
+    let mcp_server = mcp::server::MCPServer::new(prompt_provider);
+    let configure = mcp_server.configure();
+
+    // Start the HTTP server
+    HttpServer::new(move || {
+        App::new()
+            .configure(configure.clone())
+    })
+    .bind(format!("{}:{}", host, port))?
+    .run()
+    .await
 }
