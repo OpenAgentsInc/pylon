@@ -9,48 +9,48 @@ arguments:
     required: false
 messages:
   - role: assistant
-    content_type: text
-    text: |
-      I will review the following file following best practices and suggest improvements for:
-      1. Performance
-      2. Code organization
-      3. React/TypeScript usage
-      4. Error handling
-      5. UI/UX patterns
+    content:
+      type: text
+      text: |
+        I will review the following file following best practices and suggest improvements for:
+        1. Performance
+        2. Code organization
+        3. React/TypeScript usage
+        4. Error handling
+        5. UI/UX patterns
 
-      I will format my response with clear sections and provide specific examples for any suggested improvements.
+        I will format my response with clear sections and provide specific examples for any suggested improvements.
 
-      Let me examine the file:
+        Let me examine the file:
 
   - role: user
-    content_type: resource
-    type: resource
-    resource:
-      type: Text
+    content:
+      type: resource
       uri: "{file_path}"
 
   - role: assistant
-    content_type: text
-    text: |
-      Here is my review of the code:
+    content:
+      type: text
+      text: |
+        Here is my review of the code:
 
-      ## Code Organization
-      {Let me analyze the code structure and organization...}
+        ## Code Organization
+        {Let me analyze the code structure and organization...}
 
-      ## Performance Considerations
-      {I'll look for performance optimizations...}
+        ## Performance Considerations
+        {I'll look for performance optimizations...}
 
-      ## React/TypeScript Usage
-      {I'll review React patterns and TypeScript types...}
+        ## React/TypeScript Usage
+        {I'll review React patterns and TypeScript types...}
 
-      ## Error Handling
-      {I'll examine error handling patterns...}
+        ## Error Handling
+        {I'll examine error handling patterns...}
 
-      ## UI/UX Patterns
-      {I'll review UI/UX best practices...}
+        ## UI/UX Patterns
+        {I'll review UI/UX best practices...}
 
-      ## Style Guide Compliance
-      {If a style guide was provided, I'll check compliance...}
+        ## Style Guide Compliance
+        {If a style guide was provided, I'll check compliance...}
 
-      ## Summary
-      {I'll summarize the key findings and recommendations...}
+        ## Summary
+        {I'll summarize the key findings and recommendations...}
