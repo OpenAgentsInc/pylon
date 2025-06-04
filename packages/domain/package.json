@@ -20,12 +20,14 @@
     "build-cjs": "babel build/esm --plugins @babel/transform-export-namespace-from --plugins @babel/transform-modules-commonjs --out-dir build/cjs --source-maps",
     "build-annotate": "babel build/esm --plugins annotate-pure-calls --out-dir build/esm --source-maps",
     "check": "tsc -b tsconfig.json",
-    "test": "vitest",
+    "test": "vitest --run",
     "coverage": "vitest --coverage"
   },
   "dependencies": {
     "@effect/platform": "0.84.5",
     "@effect/sql": "0.37.5",
+    "@noble/secp256k1": "1.7.1",
+    "bech32": "2.0.0",
     "effect": "3.16.3"
   },
   "effect": {
