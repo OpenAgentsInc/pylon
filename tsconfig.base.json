@@ -37,15 +37,15 @@
     "removeComments": false,
     "plugins": [{ "name": "@effect/language-service" }],
     "paths": {
-      "@template/cli": ["./packages/cli/src/index.js"],
-      "@template/cli/*": ["./packages/cli/src/*.js"],
-      "@template/cli/test/*": ["./packages/cli/test/*.js"],
-      "@template/domain": ["./packages/domain/src/index.js"],
-      "@template/domain/*": ["./packages/domain/src/*.js"],
-      "@template/domain/test/*": ["./packages/domain/test/*.js"],
-      "@template/server": ["./packages/server/src/index.js"],
-      "@template/server/*": ["./packages/server/src/*.js"],
-      "@template/server/test/*": ["./packages/server/test/*.js"]
+      "@openagentsinc/cli": ["./packages/cli/src/index.js"],
+      "@openagentsinc/cli/*": ["./packages/cli/src/*.js"],
+      "@openagentsinc/cli/test/*": ["./packages/cli/test/*.js"],
+      "@openagentsinc/domain": ["./packages/domain/src/index.js"],
+      "@openagentsinc/domain/*": ["./packages/domain/src/*.js"],
+      "@openagentsinc/domain/test/*": ["./packages/domain/test/*.js"],
+      "@openagentsinc/server": ["./packages/server/src/index.js"],
+      "@openagentsinc/server/*": ["./packages/server/src/*.js"],
+      "@openagentsinc/server/test/*": ["./packages/server/test/*.js"]
     }
   }
 }

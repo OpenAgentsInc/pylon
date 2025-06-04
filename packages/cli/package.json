@@ -1,5 +1,5 @@
 {
-  "name": "@template/cli",
+  "name": "@openagentsinc/cli",
   "version": "0.0.0",
   "type": "module",
   "license": "MIT",
@@ -27,14 +27,14 @@
     "@effect/cli": "0.63.5",
     "@effect/platform": "0.84.5",
     "@effect/platform-node": "0.85.1",
-    "@template/domain": "workspace:^",
+    "@openagentsinc/domain": "workspace:^",
     "effect": "3.16.3"
   },
   "devDependencies": {
     "@effect/cli": "0.63.5",
     "@effect/platform": "0.84.5",
     "@effect/platform-node": "0.85.1",
-    "@template/domain": "workspace:^",
+    "@openagentsinc/domain": "workspace:^",
     "effect": "3.16.3"
   },
   "effect": {

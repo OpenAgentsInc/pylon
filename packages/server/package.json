@@ -1,5 +1,5 @@
 {
-  "name": "@template/server",
+  "name": "@openagentsinc/server",
   "version": "0.0.0",
   "type": "module",
   "license": "MIT",
@@ -22,7 +22,7 @@
   "dependencies": {
     "@effect/platform": "0.84.5",
     "@effect/platform-node": "0.85.1",
-    "@template/domain": "workspace:^",
+    "@openagentsinc/domain": "workspace:^",
     "effect": "3.16.3"
   },
   "effect": {
