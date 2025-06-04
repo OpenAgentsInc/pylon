@@ -12,4 +12,6 @@ Pylon embraces Nostr's "smart client/dumb server" architecture while innovating 
 
 ## Status
 
-Pre-alpha; do not use
+Pre-alpha; do not use.
+
+We're focused first on integrating this into [Commander](https://github.com/OpenAgentsInc/commander).
