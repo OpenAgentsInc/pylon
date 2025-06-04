@@ -218,9 +218,9 @@ describe("NostrFilter", () => {
     })
 
     test("should detect invalid event ID format", () => {
-      const filter: Filter = {
-        ids: [EventId.make("invalid")]
-      }
+      const filter = {
+        ids: ["invalid" as any] // Raw invalid ID to test validation
+      } as Filter
       
       const errors = NostrFilter.validateFilter(filter)
       expect(errors.length).toBeGreaterThan(0)
@@ -228,9 +228,9 @@ describe("NostrFilter", () => {
     })
 
     test("should detect invalid pubkey format", () => {
-      const filter: Filter = {
-        authors: ["invalid"]
-      }
+      const filter = {
+        authors: ["invalid"] // Raw invalid pubkey
+      } as Filter
       
       const errors = NostrFilter.validateFilter(filter)
       expect(errors.length).toBeGreaterThan(0)
@@ -259,10 +259,10 @@ describe("NostrFilter", () => {
     })
 
     test("should detect invalid tag values", () => {
-      const filter: Filter = {
+      const filter = {
         "#e": ["invalid"],
         "#p": ["also-invalid"]
-      }
+      } as Filter
       
       const errors = NostrFilter.validateFilter(filter)
       expect(errors.length).toBeGreaterThan(0)

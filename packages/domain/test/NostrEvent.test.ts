@@ -87,46 +87,46 @@ describe("NostrEvent", () => {
 
   describe("Kind Classification", () => {
     test("should classify regular events correctly", () => {
-      const regularEvent = createTestEvent({ kind: EventKind.make(1) })
+      const regularEvent = createTestEvent({ kind: 1 })
       expect(regularEvent.getKindClassification()).toBe("regular")
 
-      const regularEvent2 = createTestEvent({ kind: EventKind.make(1000) })
+      const regularEvent2 = createTestEvent({ kind: 1000 })
       expect(regularEvent2.getKindClassification()).toBe("regular")
 
-      const regularEvent3 = createTestEvent({ kind: EventKind.make(2) })
+      const regularEvent3 = createTestEvent({ kind: 2 })
       expect(regularEvent3.getKindClassification()).toBe("regular")
     })
 
     test("should classify replaceable events correctly", () => {
-      const replaceableEvent = createTestEvent({ kind: EventKind.make(0) })
+      const replaceableEvent = createTestEvent({ kind: 0 })
       expect(replaceableEvent.getKindClassification()).toBe("replaceable")
 
-      const replaceableEvent2 = createTestEvent({ kind: EventKind.make(3) })
+      const replaceableEvent2 = createTestEvent({ kind: 3 })
       expect(replaceableEvent2.getKindClassification()).toBe("replaceable")
 
-      const replaceableEvent3 = createTestEvent({ kind: EventKind.make(10000) })
+      const replaceableEvent3 = createTestEvent({ kind: 10000 })
       expect(replaceableEvent3.getKindClassification()).toBe("replaceable")
     })
 
     test("should classify ephemeral events correctly", () => {
-      const ephemeralEvent = createTestEvent({ kind: EventKind.make(20000) })
+      const ephemeralEvent = createTestEvent({ kind: 20000 })
       expect(ephemeralEvent.getKindClassification()).toBe("ephemeral")
 
-      const ephemeralEvent2 = createTestEvent({ kind: EventKind.make(25000) })
+      const ephemeralEvent2 = createTestEvent({ kind: 25000 })
       expect(ephemeralEvent2.getKindClassification()).toBe("ephemeral")
 
-      const ephemeralEvent3 = createTestEvent({ kind: EventKind.make(29999) })
+      const ephemeralEvent3 = createTestEvent({ kind: 29999 })
       expect(ephemeralEvent3.getKindClassification()).toBe("ephemeral")
     })
 
     test("should classify addressable events correctly", () => {
-      const addressableEvent = createTestEvent({ kind: EventKind.make(30000) })
+      const addressableEvent = createTestEvent({ kind: 30000 })
       expect(addressableEvent.getKindClassification()).toBe("addressable")
 
-      const addressableEvent2 = createTestEvent({ kind: EventKind.make(35000) })
+      const addressableEvent2 = createTestEvent({ kind: 35000 })
       expect(addressableEvent2.getKindClassification()).toBe("addressable")
 
-      const addressableEvent3 = createTestEvent({ kind: EventKind.make(39999) })
+      const addressableEvent3 = createTestEvent({ kind: 39999 })
       expect(addressableEvent3.getKindClassification()).toBe("addressable")
     })
   })
@@ -256,7 +256,7 @@ function createTestEvent(overrides: Partial<{
     id: EventId.make(overrides.id || "a".repeat(64)),
     pubkey: PubKey.make(overrides.pubkey || "b".repeat(64)),
     created_at: UnixTimestamp.make(overrides.created_at || 1609459200),
-    kind: EventKind.make(overrides.kind || 1),
+    kind: EventKind.make(overrides.kind ?? 1),
     tags: overrides.tags || [],
     content: overrides.content || "test content",
     sig: Signature.make(overrides.sig || "c".repeat(128))
