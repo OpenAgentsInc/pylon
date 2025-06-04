@@ -27,6 +27,8 @@
     "@effect/platform": "0.84.5",
     "@effect/sql": "0.37.5",
     "@noble/secp256k1": "1.7.1",
+    "@scure/bip32": "1.7.0",
+    "@scure/bip39": "1.6.0",
     "bech32": "2.0.0",
     "effect": "3.16.3"
   },
