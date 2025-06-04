@@ -121,7 +121,7 @@ importers:
       '@effect/platform-node':
         specifier: 0.85.1
         version: 0.85.1(@effect/cluster@0.38.1(@effect/platform@0.84.5(effect@3.16.3))(@effect/rpc@0.61.5(@effect/platform@0.84.5(effect@3.16.3))(effect@3.16.3))(@effect/sql@0.37.5(@effect/experimental@0.48.5(@effect/platform@0.84.5(effect@3.16.3))(effect@3.16.3))(@effect/platform@0.84.5(effect@3.16.3))(effect@3.16.3))(@effect/workflow@0.1.2(effect@3.16.3))(effect@3.16.3))(@effect/platform@0.84.5(effect@3.16.3))(@effect/rpc@0.61.5(@effect/platform@0.84.5(effect@3.16.3))(effect@3.16.3))(@effect/sql@0.37.5(@effect/experimental@0.48.5(@effect/platform@0.84.5(effect@3.16.3))(effect@3.16.3))(@effect/platform@0.84.5(effect@3.16.3))(effect@3.16.3))(effect@3.16.3)
-      '@template/domain':
+      '@openagentsinc/domain':
         specifier: workspace:^
         version: link:../domain/dist
       effect:
@@ -137,6 +137,12 @@ importers:
       '@effect/sql':
         specifier: 0.37.5
         version: 0.37.5(@effect/experimental@0.48.5(@effect/platform@0.84.5(effect@3.16.3))(effect@3.16.3))(@effect/platform@0.84.5(effect@3.16.3))(effect@3.16.3)
+      '@noble/secp256k1':
+        specifier: 1.7.1
+        version: 1.7.1
+      bech32:
+        specifier: 2.0.0
+        version: 2.0.0
       effect:
         specifier: 3.16.3
         version: 3.16.3
@@ -150,7 +156,7 @@ importers:
       '@effect/platform-node':
         specifier: 0.85.1
         version: 0.85.1(@effect/cluster@0.38.1(@effect/platform@0.84.5(effect@3.16.3))(@effect/rpc@0.61.5(@effect/platform@0.84.5(effect@3.16.3))(effect@3.16.3))(@effect/sql@0.37.5(@effect/experimental@0.48.5(@effect/platform@0.84.5(effect@3.16.3))(effect@3.16.3))(@effect/platform@0.84.5(effect@3.16.3))(effect@3.16.3))(@effect/workflow@0.1.2(effect@3.16.3))(effect@3.16.3))(@effect/platform@0.84.5(effect@3.16.3))(@effect/rpc@0.61.5(@effect/platform@0.84.5(effect@3.16.3))(effect@3.16.3))(@effect/sql@0.37.5(@effect/experimental@0.48.5(@effect/platform@0.84.5(effect@3.16.3))(effect@3.16.3))(@effect/platform@0.84.5(effect@3.16.3))(effect@3.16.3))(effect@3.16.3)
-      '@template/domain':
+      '@openagentsinc/domain':
         specifier: workspace:^
         version: link:../domain/dist
       effect:
@@ -879,6 +885,9 @@ packages:
   '@nicolo-ribaudo/chokidar-2@2.1.8-no-fsevents.3':
     resolution: {integrity: sha512-s88O1aVtXftvp5bCPB7WnmXc5IwOZZ7YPuwNPt+GtOOXpPvad1LfbmjYv+qII7zP6RU2QGnqve27dnLycEnyEQ==}
 
+  '@noble/secp256k1@1.7.1':
+    resolution: {integrity: sha512-hOUk6AyBFmqVrv7k5WAw/LpszxVbj9gGN4JRkIX52fdFAj1UA61KXmZDvqVEm+pOyec3+fIeZB02LYa/pWOArw==}
+
   '@nodelib/fs.scandir@2.1.5':
     resolution: {integrity: sha512-vq24Bq3ym5HEQm2NKCr3yXDwjc7vTsEThRDnkp2DK9p1uqLR+DHurm/NOTo0KG7HYHU7eppKZj3MyqYuMBf62g==}
     engines: {node: '>= 8'}
@@ -1431,6 +1440,9 @@ packages:
 
   balanced-match@1.0.2:
     resolution: {integrity: sha512-3oSeUO0TMV67hN1AmbXsK4yaqU7tjiHlbxRDZOpH0KW9+CeX4bRAaX0Anxt0tx2MrpRpWwQaPwIlISEJhYU5Pw==}
+
+  bech32@2.0.0:
+    resolution: {integrity: sha512-LcknSilhIGatDAsY1ak2I8VtGaHNhgMSYVxFrGLXv+xLHytaKZKcaUJJUE7qmBr7h33o5YQwP55pMI0xmkpJwg==}
 
   better-path-resolve@1.0.0:
     resolution: {integrity: sha512-pbnl5XzGBdrFU/wT4jqmJVPn2B6UHPBOhzMQkY/SPUPB6QtUXtmBHBIwCbXJol93mOpGMnQyP/+BB19q04xj7g==}
@@ -3829,6 +3841,8 @@ snapshots:
   '@nicolo-ribaudo/chokidar-2@2.1.8-no-fsevents.3':
     optional: true
 
+  '@noble/secp256k1@1.7.1': {}
+
   '@nodelib/fs.scandir@2.1.5':
     dependencies:
       '@nodelib/fs.stat': 2.0.5
@@ -4330,6 +4344,8 @@ snapshots:
       '@babel/core': 7.27.4
 
   balanced-match@1.0.2: {}
+
+  bech32@2.0.0: {}
 
   better-path-resolve@1.0.0:
     dependencies:
