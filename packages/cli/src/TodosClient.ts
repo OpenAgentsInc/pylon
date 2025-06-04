@@ -1,5 +1,5 @@
 import { HttpApiClient } from "@effect/platform"
-import { TodosApi } from "@template/domain/TodosApi"
+import { TodosApi } from "@openagentsinc/domain/TodosApi"
 import { Effect } from "effect"
 
 export class TodosClient extends Effect.Service<TodosClient>()("cli/TodosClient", {
