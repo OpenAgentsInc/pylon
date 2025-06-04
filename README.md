@@ -1,32 +1,5 @@
-# Effect Monorepo Template
+# Pylon
 
-This template provides a solid foundation for building scalable and maintainable TypeScript applications with Effect. 
+Pylon is a next-generation Nostr relay designed for the privacy-focused AI agent ecosystem. Built by OpenAgents, Pylon combines cutting-edge technologies—EffectTS for type-safe business logic, Rivet actors for stateful connection management, and pglite for flexible deployment options—to create a secure, performant, and highly customizable communication backbone.
 
-## Running Code
-
-This template leverages [tsx](https://tsx.is) to allow execution of TypeScript files via NodeJS as if they were written in plain JavaScript.
-
-To execute a file with `tsx`:
-
-```sh
-pnpm tsx ./path/to/the/file.ts
-```
-
-## Operations
-
-**Building**
-
-To build all packages in the monorepo:
-
-```sh
-pnpm build
-```
-
-**Testing**
-
-To test all packages in the monorepo:
-
-```sh
-pnpm test
-```
-
+Pylon embraces Nostr's "smart client/dumb server" architecture while innovating at the boundaries through embedded relay capabilities. This enables unprecedented user sovereignty—users maintain complete control over their data while participating in the broader decentralized network. From high-performance cloud infrastructure serving millions of users to lightweight embedded instances running on mobile devices, Pylon adapts to any environment while maintaining security and privacy standards essential for AI agents operating in potentially hostile environments.
