@@ -24,9 +24,9 @@
     "coverage": "vitest --coverage"
   },
   "dependencies": {
-    "@effect/platform": "latest",
-    "@effect/sql": "latest",
-    "effect": "latest"
+    "@effect/platform": "0.84.5",
+    "@effect/sql": "0.37.5",
+    "effect": "3.16.3"
   },
   "effect": {
     "generateExports": {

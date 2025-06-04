@@ -24,18 +24,18 @@
     "coverage": "vitest --coverage"
   },
   "dependencies": {
-    "@effect/cli": "latest",
-    "@effect/platform": "latest",
-    "@effect/platform-node": "latest",
+    "@effect/cli": "0.63.5",
+    "@effect/platform": "0.84.5",
+    "@effect/platform-node": "0.85.1",
     "@template/domain": "workspace:^",
-    "effect": "latest"
+    "effect": "3.16.3"
   },
   "devDependencies": {
-    "@effect/cli": "latest",
-    "@effect/platform": "latest",
-    "@effect/platform-node": "latest",
+    "@effect/cli": "0.63.5",
+    "@effect/platform": "0.84.5",
+    "@effect/platform-node": "0.85.1",
     "@template/domain": "workspace:^",
-    "effect": "latest"
+    "effect": "3.16.3"
   },
   "effect": {
     "generateExports": {

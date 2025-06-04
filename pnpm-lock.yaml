@@ -5,7 +5,7 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
-  vitest: ^2.0.5
+  vitest: 2.1.9
 
 patchedDependencies:
   '@changesets/assemble-release-plan@6.0.5':
@@ -23,37 +23,37 @@ importers:
   .:
     devDependencies:
       '@babel/cli':
-        specifier: ^7.25.9
+        specifier: 7.27.2
         version: 7.27.2(@babel/core@7.27.4)
       '@babel/core':
-        specifier: ^7.26.0
+        specifier: 7.27.4
         version: 7.27.4
       '@babel/plugin-transform-export-namespace-from':
-        specifier: ^7.25.9
+        specifier: 7.27.1
         version: 7.27.1(@babel/core@7.27.4)
       '@babel/plugin-transform-modules-commonjs':
-        specifier: ^7.25.9
+        specifier: 7.27.1
         version: 7.27.1(@babel/core@7.27.4)
       '@changesets/assemble-release-plan':
         specifier: 6.0.5
         version: 6.0.5(patch_hash=24lrjmuuj4fjvhh2j4kmmfxqca)
       '@changesets/changelog-github':
-        specifier: ^0.5.0
+        specifier: 0.5.1
         version: 0.5.1
       '@changesets/cli':
-        specifier: ^2.27.8
+        specifier: 2.29.4
         version: 2.29.4
       '@effect/build-utils':
-        specifier: ^0.7.7
+        specifier: 0.7.9
         version: 0.7.9
       '@effect/eslint-plugin':
-        specifier: ^0.2.0
+        specifier: 0.2.0
         version: 0.2.0
       '@effect/language-service':
-        specifier: ^0.2.0
+        specifier: 0.2.0
         version: 0.2.0
       '@effect/vitest':
-        specifier: latest
+        specifier: 0.23.3
         version: 0.23.3(effect@3.16.3)(vitest@2.1.9(@types/node@22.15.29))
       '@eslint/compat':
         specifier: 1.2.2
@@ -65,96 +65,96 @@ importers:
         specifier: 9.13.0
         version: 9.13.0
       '@types/node':
-        specifier: ^22.8.5
+        specifier: 22.15.29
         version: 22.15.29
       '@typescript-eslint/eslint-plugin':
-        specifier: ^8.12.2
+        specifier: 8.33.1
         version: 8.33.1(@typescript-eslint/parser@8.33.1(eslint@9.28.0)(typescript@5.8.3))(eslint@9.28.0)(typescript@5.8.3)
       '@typescript-eslint/parser':
-        specifier: ^8.12.2
+        specifier: 8.33.1
         version: 8.33.1(eslint@9.28.0)(typescript@5.8.3)
       babel-plugin-annotate-pure-calls:
-        specifier: ^0.4.0
+        specifier: 0.4.0
         version: 0.4.0(patch_hash=lz2aochwly4t7pzapzh4fqay4m)(@babel/core@7.27.4)
       effect:
-        specifier: ^3.10.7
+        specifier: 3.16.3
         version: 3.16.3
       eslint:
-        specifier: ^9.13.0
+        specifier: 9.28.0
         version: 9.28.0
       eslint-import-resolver-typescript:
-        specifier: ^3.6.3
+        specifier: 3.10.1
         version: 3.10.1(eslint-plugin-import@2.31.0)(eslint@9.28.0)
       eslint-plugin-codegen:
-        specifier: ^0.29.0
+        specifier: 0.29.0
         version: 0.29.0(eslint@9.28.0)
       eslint-plugin-import:
-        specifier: ^2.31.0
+        specifier: 2.31.0
         version: 2.31.0(@typescript-eslint/parser@8.33.1(eslint@9.28.0)(typescript@5.8.3))(eslint-import-resolver-typescript@3.10.1)(eslint@9.28.0)
       eslint-plugin-simple-import-sort:
-        specifier: ^12.1.1
+        specifier: 12.1.1
         version: 12.1.1(eslint@9.28.0)
       eslint-plugin-sort-destructure-keys:
-        specifier: ^2.0.0
+        specifier: 2.0.0
         version: 2.0.0(eslint@9.28.0)
       glob:
-        specifier: ^11.0.0
+        specifier: 11.0.2
         version: 11.0.2
       tsx:
-        specifier: ^4.19.2
+        specifier: 4.19.4
         version: 4.19.4
       typescript:
-        specifier: ^5.6.3
+        specifier: 5.8.3
         version: 5.8.3
       vitest:
-        specifier: ^2.0.5
+        specifier: 2.1.9
         version: 2.1.9(@types/node@22.15.29)
 
   packages/cli:
     dependencies:
       '@effect/cli':
-        specifier: latest
+        specifier: 0.63.5
         version: 0.63.5(@effect/platform@0.84.5(effect@3.16.3))(@effect/printer-ansi@0.44.3(@effect/typeclass@0.35.3(effect@3.16.3))(effect@3.16.3))(@effect/printer@0.44.3(@effect/typeclass@0.35.3(effect@3.16.3))(effect@3.16.3))(effect@3.16.3)
       '@effect/platform':
-        specifier: latest
+        specifier: 0.84.5
         version: 0.84.5(effect@3.16.3)
       '@effect/platform-node':
-        specifier: latest
+        specifier: 0.85.1
         version: 0.85.1(@effect/cluster@0.38.1(@effect/platform@0.84.5(effect@3.16.3))(@effect/rpc@0.61.5(@effect/platform@0.84.5(effect@3.16.3))(effect@3.16.3))(@effect/sql@0.37.5(@effect/experimental@0.48.5(@effect/platform@0.84.5(effect@3.16.3))(effect@3.16.3))(@effect/platform@0.84.5(effect@3.16.3))(effect@3.16.3))(@effect/workflow@0.1.2(effect@3.16.3))(effect@3.16.3))(@effect/platform@0.84.5(effect@3.16.3))(@effect/rpc@0.61.5(@effect/platform@0.84.5(effect@3.16.3))(effect@3.16.3))(@effect/sql@0.37.5(@effect/experimental@0.48.5(@effect/platform@0.84.5(effect@3.16.3))(effect@3.16.3))(@effect/platform@0.84.5(effect@3.16.3))(effect@3.16.3))(effect@3.16.3)
       '@template/domain':
         specifier: workspace:^
         version: link:../domain/dist
       effect:
-        specifier: latest
+        specifier: 3.16.3
         version: 3.16.3
     publishDirectory: dist
 
   packages/domain:
     dependencies:
       '@effect/platform':
-        specifier: latest
+        specifier: 0.84.5
         version: 0.84.5(effect@3.16.3)
       '@effect/sql':
-        specifier: latest
+        specifier: 0.37.5
         version: 0.37.5(@effect/experimental@0.48.5(@effect/platform@0.84.5(effect@3.16.3))(effect@3.16.3))(@effect/platform@0.84.5(effect@3.16.3))(effect@3.16.3)
       effect:
-        specifier: latest
+        specifier: 3.16.3
         version: 3.16.3
     publishDirectory: dist
 
   packages/server:
     dependencies:
       '@effect/platform':
-        specifier: latest
+        specifier: 0.84.5
         version: 0.84.5(effect@3.16.3)
       '@effect/platform-node':
-        specifier: latest
+        specifier: 0.85.1
         version: 0.85.1(@effect/cluster@0.38.1(@effect/platform@0.84.5(effect@3.16.3))(@effect/rpc@0.61.5(@effect/platform@0.84.5(effect@3.16.3))(effect@3.16.3))(@effect/sql@0.37.5(@effect/experimental@0.48.5(@effect/platform@0.84.5(effect@3.16.3))(effect@3.16.3))(@effect/platform@0.84.5(effect@3.16.3))(effect@3.16.3))(@effect/workflow@0.1.2(effect@3.16.3))(effect@3.16.3))(@effect/platform@0.84.5(effect@3.16.3))(@effect/rpc@0.61.5(@effect/platform@0.84.5(effect@3.16.3))(effect@3.16.3))(@effect/sql@0.37.5(@effect/experimental@0.48.5(@effect/platform@0.84.5(effect@3.16.3))(effect@3.16.3))(@effect/platform@0.84.5(effect@3.16.3))(effect@3.16.3))(effect@3.16.3)
       '@template/domain':
         specifier: workspace:^
         version: link:../domain/dist
       effect:
-        specifier: latest
+        specifier: 3.16.3
         version: 3.16.3
 
 packages:
@@ -424,7 +424,7 @@ packages:
     resolution: {integrity: sha512-yIB+Cllk1txmtpdpVX95SdmM0/FHqapz4wGSWYTe0c/K9fhgL6t0t5WsLmgzlk0rGnSi0+U21AHmPynjgk6+ig==}
     peerDependencies:
       effect: ^3.16.3
-      vitest: ^2.0.5
+      vitest: 2.1.9
 
   '@effect/workflow@0.1.2':
     resolution: {integrity: sha512-JhpcMxUAIE1If3bogZ13WxKmkotLO0QWHpAT1ICogSndAyPDWqp6ep0onMo0l3L7XOz/tRMNEqpCSLX24C/h4A==}
