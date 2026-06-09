@@ -67,6 +67,12 @@ function logToUi(message: string) {
 // Effect-native logging helper
 const log = (message: string) => Effect.sync(() => logToUi(message))
 
+function runBackgroundEffect(name: string, effect: Effect.Effect<void, unknown>) {
+  void Effect.runPromise(effect).catch((error) => {
+    logToUi(`[${name}] Background service stopped with error: ${String(error)}`)
+  })
+}
+
 function updateMdkBalance(balance: number, suffix = "Sats") {
   if (balanceTextRenderable) {
     balanceTextRenderable.content = ` Balance: ${balance.toLocaleString()} ${suffix}`
@@ -452,20 +458,22 @@ const runPylonNode = Effect.gen(function* () {
   // Focus on Composer Input
   composerInput.focus()
 
+  // Start Background Services as Concurrent Fibers
+  yield* Effect.sync(() => {
+    runBackgroundEffect("Telemetry", startHardwareTelemetryLoop)
+    runBackgroundEffect("Wallet", startMdkWalletService)
+    runBackgroundEffect("Heartbeat", startPresenceHeartbeatLoop)
+    runBackgroundEffect("OpenCode", runOpencodeStartupInference)
+  })
+
+  yield* log("Pylon v0.3 observational dashboard active.")
+
   if (Bun.argv.includes("--smoke-dashboard") || Bun.env.PYLON_SMOKE_DASHBOARD === "1") {
     yield* log("Pylon v0.3 dashboard smoke complete.")
     renderer.stop?.()
     yield* Effect.sync(() => process.exit(0))
     return
   }
-
-  // Start Background Services as Concurrent Fibers
-  const telemetryFiber = yield* Effect.fork(startHardwareTelemetryLoop)
-  const walletFiber = yield* Effect.fork(startMdkWalletService)
-  const heartbeatFiber = yield* Effect.fork(startPresenceHeartbeatLoop)
-  const opencodeFiber = yield* Effect.fork(runOpencodeStartupInference)
-
-  yield* log("Pylon v0.3 observational dashboard active.")
 
   // Enter the persistent execution block
   yield* Effect.never
