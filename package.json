@@ -5,6 +5,16 @@
   "private": false,
   "main": "src/index.ts",
   "type": "module",
+  "packageManager": "bun@1.3.11",
+  "workspaces": {
+    "packages": [
+      "packages/*"
+    ],
+    "catalog": {
+      "effect": "4.0.0-beta.70",
+      "typescript": "^6.0.3"
+    }
+  },
   "bin": {
     "pylon": "src/index.ts"
   },
@@ -14,7 +24,12 @@
   ],
   "files": [
     "src",
+    "packages/runtime/src",
+    "packages/runtime/package.json",
     "docs/images/pylon.png",
+    "docs/*.md",
+    "docs/benchmarks",
+    "docs/probe-port",
     "README.md",
     "LICENSE"
   ],
@@ -26,11 +41,15 @@
     "url": "git+https://github.com/OpenAgentsInc/pylon.git"
   },
   "scripts": {
-    "start": "bun src/index.ts"
+    "start": "bun src/index.ts",
+    "runtime": "bun --cwd packages/runtime src/cli.ts",
+    "runtime:test": "bun run --cwd packages/runtime test",
+    "test": "bun test"
   },
   "dependencies": {
     "@opentui/core": "^0.3.4",
-    "effect": "^3.0.0"
+    "@openagentsinc/pylon-runtime": "workspace:*",
+    "effect": "catalog:"
   },
   "devDependencies": {
     "bun-types": "^1.0.0"

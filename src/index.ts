@@ -12,6 +12,7 @@ import {
   SyntaxStyle,
   type CliRenderer
 } from "@opentui/core"
+import { runProbeCli } from "@openagentsinc/pylon-runtime"
 
 // Global UI references for log aggregation and balance updates
 let globalRenderer: CliRenderer | null = null
@@ -463,11 +464,33 @@ const runPylonNode = Effect.gen(function* () {
   yield* Effect.never
 })
 
-// Execute the main program safely via Effect
-Effect.runPromise(
-  runPylonNode.pipe(
-    Effect.catchAll((error) =>
-      Console.error(`Pylon v0.3 crashed on startup: ${error.message}`)
+const runtimeCommandNamespaces = new Set([
+  "apple-fm",
+  "auth",
+  "backend",
+  "chat",
+  "omega",
+])
+
+async function main() {
+  const args = Bun.argv.slice(2)
+
+  if (args[0] === "runtime" || runtimeCommandNamespaces.has(args[0] ?? "")) {
+    const runtimeArgs = args[0] === "runtime" ? args.slice(1) : args
+    const result = await Effect.runPromise(runProbeCli(runtimeArgs, { env: Bun.env }))
+    if (result.stdout) process.stdout.write(result.stdout)
+    if (result.stderr) process.stderr.write(result.stderr)
+    process.exitCode = result.exitCode
+    return
+  }
+
+  await Effect.runPromise(
+    runPylonNode.pipe(
+      Effect.catchAll((error) =>
+        Console.error(`Pylon v0.3 crashed on startup: ${error.message}`)
+      )
     )
   )
-)
+}
+
+await main()
