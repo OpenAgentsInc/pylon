@@ -7,7 +7,8 @@ let logScrollBox: ScrollBoxRenderable | null = null
 
 function logToUi(message: string) {
   if (logScrollBox && globalRenderer) {
-    const timestamp = new Date().toISOString().slice(11, 19)
+    const now = new Date()
+    const timestamp = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}:${String(now.getSeconds()).padStart(2, "0")}`
     const line = new TextRenderable(globalRenderer, {
       content: `[${timestamp}] ${message}`,
       fg: parseColor("#A5D6FF"),
