@@ -23,8 +23,9 @@ project, and verifies:
 
 ## Linux CI Smoke
 
-The same smoke is wired in `.github/workflows/release-smoke.yml` on
-`ubuntu-latest`. It runs:
+The same smoke is ready for an `ubuntu-latest` CI runner. The current GitHub
+token cannot create workflow files, so the reproducible command sequence is
+documented here until a workflow-scope token wires it:
 
 ```sh
 bun install
@@ -33,8 +34,8 @@ bun pm pack --dry-run
 bun run smoke:install:local
 ```
 
-The workflow is intentionally package-install based. It does not rely on the
-old v0.2 launcher or deprecated OpenAgents Rust Pylon implementation homes.
+The smoke is intentionally package-install based. It does not rely on the old
+v0.2 launcher or deprecated OpenAgents Rust Pylon implementation homes.
 
 ## Bootstrap Surface
 
