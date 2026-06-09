@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "@openagents/pylon",
+      "name": "@openagentsinc/pylon",
       "dependencies": {
         "@opentui/core": "^0.3.4",
         "effect": "^3.0.0",

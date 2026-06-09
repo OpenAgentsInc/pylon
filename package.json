@@ -1,10 +1,30 @@
 {
-  "name": "@openagents/pylon",
+  "name": "@openagentsinc/pylon",
   "version": "0.3.0",
   "description": "Modern Pylon contributor node built on Bun, Effect, and OpenTUI",
-  "private": true,
+  "private": false,
   "main": "src/index.ts",
   "type": "module",
+  "bin": {
+    "pylon": "src/index.ts"
+  },
+  "os": [
+    "darwin",
+    "linux"
+  ],
+  "files": [
+    "src",
+    "docs/images/pylon.png",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/OpenAgentsInc/pylon.git"
+  },
   "scripts": {
     "start": "bun src/index.ts"
   },

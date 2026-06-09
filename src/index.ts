@@ -1,3 +1,5 @@
+#!/usr/bin/env bun
+
 import { Effect, Console } from "effect"
 import {
   createCliRenderer,
