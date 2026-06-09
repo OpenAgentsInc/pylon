@@ -54,6 +54,7 @@ function logToUi(message: string) {
       syntaxStyle,
       width: "100%",
       conceal: true,
+      fg: parseColor("#5C7080"),
     })
     logScrollBox.add(line)
   } else {
@@ -269,21 +270,6 @@ const runPylonNode = Effect.gen(function* () {
   })
   renderer.root.add(outerContainer)
 
-  // 2. Create Header Panel (Height 3)
-  const headerBox = new BoxRenderable(renderer, {
-    border: true,
-    borderType: "single",
-    title: " // Pylon earning node ",
-    width: "100%",
-    height: 3,
-  })
-  const headerText = new TextRenderable(renderer, {
-    content: " earning node active | watching autonomous agent work and earn bitcoin",
-    fg: parseColor("#8BA6CD"),
-  })
-  headerBox.add(headerText)
-  outerContainer.add(headerBox)
-
   // 3. Create Main Split Pane (Row Direction, Flex Grow)
   const splitPane = new BoxRenderable(renderer, {
     flexDirection: "row",
@@ -295,8 +281,10 @@ const runPylonNode = Effect.gen(function* () {
   // 3a. Logs/Feed Panel (Left Column, Flex Grow)
   const leftPanel = new BoxRenderable(renderer, {
     border: true,
-    borderType: "single",
+    borderStyle: "single",
+    borderColor: parseColor("#73C2FB"),
     title: " // Active Workroom Execution Logs ",
+    titleColor: parseColor("#73C2FB"),
     flexGrow: 1,
     height: "100%",
   })
@@ -313,8 +301,10 @@ const runPylonNode = Effect.gen(function* () {
   // 3b. Telemetry & Balance Panel (Right Column, Fixed Width 35)
   const rightPanel = new BoxRenderable(renderer, {
     border: true,
-    borderType: "single",
+    borderStyle: "single",
+    borderColor: parseColor("#73C2FB"),
     title: " // Telemetry & Wallet ",
+    titleColor: parseColor("#73C2FB"),
     width: 35,
     flexBasis: 35,
     flexGrow: 0,
@@ -354,8 +344,10 @@ const runPylonNode = Effect.gen(function* () {
   // 4. Create Composer Input Panel (Bottom, Height 5)
   const composerBox = new BoxRenderable(renderer, {
     border: true,
-    borderType: "single",
+    borderStyle: "single",
+    borderColor: parseColor("#73C2FB"),
     title: " // Composer (meta+return to submit) ",
+    titleColor: parseColor("#73C2FB"),
     width: "100%",
     height: 5,
   })
