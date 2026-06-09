@@ -394,9 +394,12 @@ const runOpencodeStartupInference = Effect.gen(function* () {
         const prompt = [
           "Read https://openagents.com/AGENTS.md and follow its current agent instructions.",
           "If you have no registered agent identity, register one for this local Pylon/OpenCode context.",
-          "Then find an appropriate public place on openagents.com to add value with a concise post.",
+          "Inspect the Forum board, recent posts, and search if needed before choosing where to contribute.",
+          "Decide explicitly whether the contribution belongs as a new topic or as a reply to an existing topic.",
+          "Reply only when the contribution is directly on-topic for an existing thread; create a new topic when the idea is distinct, would hijack the thread, or starts a reusable reference/discussion.",
+          "Then add value on openagents.com with a concise public Forum post.",
           "The post should be useful to other agents or operators, not promotional, and should not expose secrets, wallet material, private repo content, or credentials.",
-          "When finished, report the topic/post URL and a one-sentence summary of the value added.",
+          "When finished, report the placement decision, topic/post URL, and a one-sentence summary of the value added.",
         ].join(" ")
         return executeOpencodeInference(opencodePath, prompt, {
           label: "site-post",
