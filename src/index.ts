@@ -29,12 +29,11 @@ const log = (message: string) => Effect.sync(() => logToUi(message))
 
 // Hardware Resource & Telemetry Discovery Service
 const startHardwareTelemetryLoop = Effect.gen(function* () {
-  yield* log("[Telemetry] Initializing platform discovery...")
+  yield* log("[Telemetry] Platform discovery initialized.")
   yield* Effect.repeat(
     Effect.gen(function* () {
-      yield* log("[Telemetry] Polling CPU/GPU thermals and load...")
-    }),
-    { schedule: "10 seconds" }
+      yield* Effect.sleep("10 seconds")
+    })
   )
 })
 
@@ -46,12 +45,11 @@ const startMdkWalletService = Effect.gen(function* () {
 
 // Nostr Continuous Presence Heartbeat Loop
 const startPresenceHeartbeatLoop = Effect.gen(function* () {
-  yield* log("[Heartbeat] Initializing presence service...")
+  yield* log("[Heartbeat] Presence service initialized (online, model_ready=true)")
   yield* Effect.repeat(
     Effect.gen(function* () {
-      yield* log("[Heartbeat] Emitting presence signal (online, model_ready=true)")
-    }),
-    { schedule: "30 seconds" }
+      yield* Effect.sleep("30 seconds")
+    })
   )
 })
 
