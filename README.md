@@ -88,6 +88,9 @@ The runtime includes:
 - Apple Foundation Models bridge support, readiness receipts, streaming tool
   callbacks, and Program Run evidence.
 - Gemini direct API and Omega-brokered Gemini materialization.
+- Psionic OpenAI-compatible `/v1/chat/completions` client with text, tool-call
+  loop, streaming delta tool-call parsing, max round-trip guard, and redacted
+  transcript/tool-call receipts.
 - Provider-neutral LLM message/request/tool/usage contracts.
 - Blueprint signature lookup, tool-menu planning, Action Submission boundaries,
   and contribution release gates.

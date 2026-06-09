@@ -4,9 +4,11 @@ Date: 2026-06-09
 
 Status: audit and first-pass roadmap for adding Psionic-backed Qwen3.5 local
 inference as an optional Pylon coding-agent backend. The attach-only backend
-profile and doctor surface are now implemented for issue #13; chat/tool-call
-execution, model-row admission gates, installer flow, and assignment gating
-remain tracked separately.
+profile and doctor surface are implemented for issue #13. The
+OpenAI-compatible chat/completions client, tool-call loop, streaming
+`delta.tool_calls` parser, round-trip guard, and redacted transcript/tool-call
+receipts are implemented for issue #11. Model-row admission gates, installer
+flow, and assignment gating remain tracked separately.
 
 ## Source Material Read
 
@@ -296,15 +298,26 @@ The Psionic Qwen backend should support two tool-call loops.
 Use `/v1/chat/completions` for the first coding-agent backend because Psionic's
 Hermes compatibility proof is retained there.
 
+Implemented surface:
+
+- `makePsionicQwenClient().complete(...)` accepts `ProbeLlmRequest` and
+  `ProbeLlmTools`;
+- lowers system/user/assistant/tool turns to OpenAI-compatible chat messages;
+- lowers `ProbeLlmToolDefinition` to OpenAI-compatible function tools;
+- maps `auto`, `none`, `required`, and named tool choices to `tool_choice`;
+- parses non-streaming `message.tool_calls`;
+- parses streaming `delta.tool_calls` with chunked argument assembly;
+- dispatches local tools through `dispatchProbeLlmTool`;
+- appends assistant tool-call turns and tool-result turns;
+- enforces a max model round-trip count;
+- emits content-redacted transcript and tool-call receipts.
+
 Required behavior:
 
-- lower `ProbeLlmToolDefinition` to OpenAI-compatible tools;
-- map `ProbeLlmToolChoice` to OpenAI-compatible `tool_choice`;
-- parse `message.tool_calls` and streaming `delta.tool_calls`;
-- dispatch local tools through `dispatchProbeLlmTool`;
-- append assistant tool-call turns and tool result turns;
-- enforce a max model round-trip count;
-- record redacted backend transcript and tool-call receipts.
+- keep the chat/completions client attach-only;
+- keep prompts, local paths, model files, and provider secrets out of receipts;
+- preserve provider-neutral request/tool/usage contracts so assignment routing
+  can select Psionic without a Qwen-only tool runtime.
 
 ### Responses Loop
 

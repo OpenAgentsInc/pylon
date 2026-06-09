@@ -15,6 +15,7 @@ export * from "./backends/gemini/receipts";
 export * from "./backends/gemini/tool-schema";
 export * from "./backends/psionic-qwen/client";
 export * from "./backends/psionic-qwen/contract";
+export * from "./backends/psionic-qwen/protocol";
 export * from "./backends/psionic-qwen/receipts";
 export * from "./backends/registry";
 export * from "./benchmark/closeout-writer";
