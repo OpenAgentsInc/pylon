@@ -4,11 +4,14 @@ import { createCliRenderer, BoxRenderable, TextRenderable, ScrollBoxRenderable, 
 // Global UI reference for log aggregation
 let globalRenderer: CliRenderer | null = null
 let logScrollBox: ScrollBoxRenderable | null = null
+const logHistory: string[] = []
 
 function logToUi(message: string) {
+  const now = new Date()
+  const timestamp = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}:${String(now.getSeconds()).padStart(2, "0")}`
+  logHistory.push(`[${timestamp}] ${message}`)
+
   if (logScrollBox && globalRenderer) {
-    const now = new Date()
-    const timestamp = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}:${String(now.getSeconds()).padStart(2, "0")}`
     const line = new TextRenderable(globalRenderer, {
       content: `[${timestamp}] ${message}`,
       fg: parseColor("#A5D6FF"),
@@ -52,65 +55,83 @@ const startPresenceHeartbeatLoop = Effect.gen(function* () {
   )
 })
 
+// OpenCode Programmatic Integration Helper
+async function executeOpencodeInference(opencodePath: string, prompt: string) {
+  const proc = Bun.spawn(
+    [
+      opencodePath,
+      "run",
+      prompt,
+      "--model",
+      "opencode/deepseek-v4-flash-free",
+      "--format",
+      "json",
+    ],
+    {
+      stdout: "pipe",
+      stderr: "pipe",
+    }
+  )
+  const stdout = await new Response(proc.stdout).text()
+  
+  let textResult = ""
+  let finalCost = 0
+  let totalTokens = 0
+  
+  for (const line of stdout.split("\n")) {
+    if (!line.trim()) continue
+    try {
+      const event = JSON.parse(line)
+      if (event.type === "text" && event.part && event.part.text) {
+        textResult += event.part.text
+      }
+      if (event.type === "step_finish" && event.part && event.part.tokens) {
+        finalCost = event.part.cost ?? 0
+        totalTokens = event.part.tokens.total ?? 0
+      }
+    } catch {
+      // Ignore parse errors or other outputs
+    }
+  }
+  
+  return {
+    text: textResult.trim(),
+    cost: finalCost,
+    tokens: totalTokens,
+  }
+}
+
 // OpenCode Programmatic Integration Service
 const runOpencodeStartupInference = Effect.gen(function* () {
   yield* log("[OpenCode] Checking for local OpenCode CLI installation...")
   const opencodePath = Bun.which("opencode")
   if (opencodePath) {
-    yield* log(`[OpenCode] Found OpenCode CLI at ${opencodePath}. Executing hello world inference...`)
+    yield* log(`[OpenCode] Found OpenCode CLI at ${opencodePath}. Initiating bootup diagnostics...`)
     
-    const result = yield* Effect.tryPromise({
-      try: async () => {
-        const proc = Bun.spawn(
-          [
-            opencodePath,
-            "run",
-            "Say 'Hello, World!' in one short sentence.",
-            "--model",
-            "opencode/deepseek-v4-flash-free",
-            "--format",
-            "json",
-          ],
-          {
-            stdout: "pipe",
-            stderr: "pipe",
-          }
-        )
-        const stdout = await new Response(proc.stdout).text()
-        
-        let textResult = ""
-        let finalCost: number | null = null
-        let totalTokens: number | null = null
-        
-        for (const line of stdout.split("\n")) {
-          if (!line.trim()) continue
-          try {
-            const event = JSON.parse(line)
-            if (event.type === "text" && event.part && event.part.text) {
-              textResult += event.part.text
-            }
-            if (event.type === "step_finish" && event.part && event.part.tokens) {
-              finalCost = event.part.cost ?? 0
-              totalTokens = event.part.tokens.total ?? 0
-            }
-          } catch {
-            // Ignore parse errors or other system outputs
-          }
-        }
-        
-        return {
-          text: textResult.trim(),
-          cost: finalCost,
-          tokens: totalTokens,
-        }
+    // 1. Get neutral log summary (<10 words)
+    const logSummaryResult = yield* Effect.tryPromise({
+      try: () => {
+        const prompt = `Here are the bootup sequence logs:\n\n${logHistory.join("\n")}\n\nProvide a one line, <10 word, neutral, terminal-sounding summary of these bootup sequence logs.`
+        return executeOpencodeInference(opencodePath, prompt)
       },
-      catch: (error) => new Error(`Failed to execute OpenCode inference: ${String(error)}`),
+      catch: (error) => new Error(`Failed to execute bootup summary: ${String(error)}`),
     })
     
-    yield* log(`[OpenCode] Inference Response: "${result.text}"`)
-    if (result.cost !== null && result.tokens !== null) {
-      yield* log(`[OpenCode] Model: "opencode/deepseek-v4-flash-free" | Cost: $${result.cost.toFixed(4)} | Tokens: ${result.tokens}`)
-    }
+    yield* log(`[OpenCode] Bootup Summary: "${logSummaryResult.text}"`)
+    yield* log(`[OpenCode] Cost: $${logSummaryResult.cost.toFixed(4)} | Tokens: ${logSummaryResult.tokens}`)
+
+    // 2. Read AGENTS.md and summarize capabilities
+    yield* log("[OpenCode] Fetching and analyzing https://openagents.com/AGENTS.md...")
+    const capabilityResult = yield* Effect.tryPromise({
+      try: () => {
+        const prompt = "Read https://openagents.com/AGENTS.md (readonly) and summarize current capabilities in 1-2 concise paragraphs."
+        return executeOpencodeInference(opencodePath, prompt)
+      },
+      catch: (error) => new Error(`Failed to execute capability summary: ${String(error)}`),
+    })
+
+    yield* log(`[OpenCode] Capabilities Summary:\n${capabilityResult.text}`)
+    yield* log(`[OpenCode] Cost: $${capabilityResult.cost.toFixed(4)} | Tokens: ${capabilityResult.tokens}`)
   } else {
     yield* log("[OpenCode] OpenCode CLI is not installed on this system.")
   }
