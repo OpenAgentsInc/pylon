@@ -20,6 +20,7 @@ import {
   parseBootstrapArgs,
   writeBootstrapFiles,
 } from "./bootstrap"
+import { ensurePylonLocalState, projectPublicStatus } from "./state"
 
 // Global UI references for log aggregation and balance updates
 let globalRenderer: CliRenderer | null = null
@@ -847,7 +848,9 @@ async function main() {
       }
 
       await writeBootstrapFiles(summary)
-      process.stdout.write(options.json ? `${JSON.stringify(summary, null, 2)}\n` : formatBootstrapText(summary))
+      const state = await ensurePylonLocalState(summary)
+      const output = options.json ? { ...summary, localState: projectPublicStatus(state).state } : formatBootstrapText(summary)
+      process.stdout.write(typeof output === "string" ? output : `${JSON.stringify(output, null, 2)}\n`)
       return
     } catch (error) {
       process.stderr.write(`Pylon bootstrap failed: ${error instanceof Error ? error.message : String(error)}\n`)
@@ -858,7 +861,8 @@ async function main() {
 
   if (args[0] === "status" && args.includes("--json")) {
     const summary = createBootstrapSummary(parseBootstrapArgs(["--json"]), Bun.env)
-    process.stdout.write(`${JSON.stringify(summary, null, 2)}\n`)
+    const state = await ensurePylonLocalState(summary)
+    process.stdout.write(`${JSON.stringify(projectPublicStatus(state), null, 2)}\n`)
     return
   }
 

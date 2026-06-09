@@ -42,6 +42,9 @@ pylon status --json
 minimal public-safe config summary. Live registration and MDK mutation are
 tracked by later launch gates.
 
+`status --json` loads or creates the local identity/runtime state and emits a
+redacted public-safe projection for headless diagnostics.
+
 The runtime includes:
 
 - Apple Foundation Models bridge support, readiness receipts, streaming tool

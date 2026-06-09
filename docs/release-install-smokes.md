@@ -50,6 +50,8 @@ pylon status --json
 `bootstrap` creates the local v0.3 home/cache/release directories and writes a
 minimal public-safe config summary. Registration, MDK wallet execution, and
 live endpoint mutation remain separately gated by later launch issues.
+`status --json` emits the persisted local identity and runtime state through
+the public projection guard.
 
 Source-build fallback is disabled for v0.3 launch. Release/update discovery is
 defined as GitHub Releases polling while the dashboard is open.
