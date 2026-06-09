@@ -71,7 +71,7 @@ function updateMdkBalance(balance: number, suffix = "Sats") {
 
 function updateMdkStatus(status: string, color = "#22C55E") {
   if (statusTextRenderable) {
-    statusTextRenderable.content = ` Status: ${status}`
+    statusTextRenderable.content = ` Wallet: ${status}`
     statusTextRenderable.textColor = parseColor(color)
   }
 }
@@ -87,7 +87,7 @@ const startHardwareTelemetryLoop = Effect.gen(function* () {
   yield* log("[Telemetry] Platform discovery initialized.")
   while (true) {
     yield* Effect.sync(() => {
-      updateTelemetryState("ACTIVE_IN_WORK", "Gemma-4-9B-SFT", "8.2 GB / 12.0 GB")
+      updateTelemetryState("IDLE", "None (Observational)", "0.0 GB / 0.0 GB")
     })
     yield* Effect.sleep("10 seconds")
   }
@@ -96,6 +96,8 @@ const startHardwareTelemetryLoop = Effect.gen(function* () {
 // Money Dev Kit (MDK) Wallet Sidecar Service
 const startMdkWalletService = Effect.gen(function* () {
   yield* log("[Wallet] Connecting to local MDK agent-wallet daemon...")
+  let loggedOffline = false
+  let loggedOnline = false
   while (true) {
     const balance = yield* Effect.tryPromise({
       try: async () => {
@@ -130,10 +132,20 @@ const startMdkWalletService = Effect.gen(function* () {
       if (balance !== null) {
         updateMdkBalance(balance)
         updateMdkStatus("ONLINE (OK)", "#22C55E")
+        if (!loggedOnline) {
+          logToUi("[Wallet] MDK agent-wallet daemon connected successfully. Balance synchronized.")
+          loggedOnline = true
+          loggedOffline = false
+        }
       } else {
         // Explicitly show 0 Sats and OFFLINE status (No fallback mockup balance)
         updateMdkBalance(0)
         updateMdkStatus("OFFLINE", "#EF4444")
+        if (!loggedOffline) {
+          logToUi("[Wallet] Local MDK daemon is not running (daemon.log ENOENT / uninitialized). Operating in OFFLINE mode.")
+          loggedOffline = true
+          loggedOnline = false
+        }
       }
     })
     yield* Effect.sleep("10 seconds")
@@ -311,7 +323,7 @@ const runPylonNode = Effect.gen(function* () {
   splitPane.add(rightPanel)
 
   statusTextRenderable = new TextRenderable(renderer, {
-    content: " Status: OFFLINE",
+    content: " Wallet: OFFLINE",
     fg: parseColor("#EF4444"),
     width: "100%",
     height: 1,
