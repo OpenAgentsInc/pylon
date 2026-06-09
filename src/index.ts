@@ -60,7 +60,13 @@ const runOpencodeStartupInference = Effect.gen(function* () {
     
     const result = yield* Effect.tryPromise({
       try: async () => {
-        const proc = Bun.spawn([opencodePath, "run", "Say 'Hello, World!' in one short sentence."])
+        const proc = Bun.spawn(
+          [opencodePath, "run", "Say 'Hello, World!' in one short sentence."],
+          {
+            stdout: "pipe",
+            stderr: "pipe",
+          }
+        )
         const stdout = await new Response(proc.stdout).text()
         return stdout.trim()
       },
