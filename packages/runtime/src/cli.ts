@@ -30,7 +30,12 @@ import { makeAppleFmToolStreamProgramRunEvidence } from "./backends/apple-fm/pro
 import { makeAppleFmToolCallbackSession } from "./backends/apple-fm/tools";
 import { GeminiClientError, makeGeminiClient, type GeminiClient, type GeminiCompleteResult } from "./backends/gemini/client";
 import { GEMINI_API_PROFILE_ID, GEMINI_DEFAULT_MODEL_ID } from "./backends/gemini/contract";
-import { makePsionicQwenClient, type PsionicQwenReadiness } from "./backends/psionic-qwen/client";
+import {
+  makePsionicQwenClient,
+  PsionicQwenClientError,
+  type PsionicQwenCompleteResult,
+  type PsionicQwenReadiness,
+} from "./backends/psionic-qwen/client";
 import {
   loadBlueprintSignatureRegistry,
   lookupBlueprintSignatures,
@@ -120,6 +125,10 @@ function handleProbeCli(
 
     if (namespace === "backend" && command === "psionic" && rest[0] === "doctor") {
       return yield* psionicDoctor(parseOptions(rest.slice(1)), deps);
+    }
+
+    if (namespace === "backend" && command === "psionic" && rest[0] === "smoke") {
+      return yield* psionicSmoke(parseOptions(rest.slice(1)), deps);
     }
 
     if (namespace === "chat") {
@@ -252,6 +261,72 @@ function psionicDoctor(
     return {
       exitCode: readiness.ready ? 0 : 1,
       stdout: options.json === true ? `${JSON.stringify(readiness, null, 2)}\n` : formatPsionicDoctor(readiness),
+      stderr: "",
+    };
+  });
+}
+
+function psionicSmoke(
+  options: Record<string, string | true>,
+  deps: ProbeCliDeps,
+): Effect.Effect<ProbeCliResult, ProbeCliError> {
+  return Effect.gen(function* () {
+    const client = yield* makePsionicQwenClient({
+      profileId: stringOption(options, "profile"),
+      explicitBaseUrl: stringOption(options, "base-url"),
+      env: deps.env,
+      fetch: deps.fetch,
+      now: deps.now,
+    }).pipe(Effect.mapError((error) => new ProbeCliError({ message: error.reason })));
+    const readiness = yield* client.doctor();
+    const explicitModel = stringOption(options, "model");
+    const blockerRefs = psionicSmokeBlockers(readiness, explicitModel);
+
+    if (blockerRefs.length > 0) {
+      const output = makePsionicSmokeBlockedOutput(readiness, blockerRefs, explicitModel);
+
+      return {
+        exitCode: 1,
+        stdout: options.json === true ? `${JSON.stringify(output, null, 2)}\n` : formatPsionicSmokeBlocked(output),
+        stderr: "",
+      };
+    }
+
+    const model = explicitModel ?? psionicSmokeModel(readiness) ?? client.profile.model;
+    const prompt = stringOption(options, "prompt") ?? "Reply with exactly: psionic pylon live";
+    const result = yield* client.complete({
+      request: makeProbeLlmRequest({
+        model: { provider: "psionic", model },
+        prompt,
+        generation: {
+          maxTokens: numberOption(options, "max-tokens") ?? 32,
+          temperature: 0,
+        },
+        providerOptions: {
+          psionic: {
+            stream: options.stream === true,
+          },
+        },
+      }),
+      maxModelRoundTrips: 1,
+      stream: options.stream === true,
+    }).pipe(Effect.catch((error: PsionicQwenClientError) => Effect.succeed(error)));
+
+    if (result instanceof PsionicQwenClientError) {
+      const output = makePsionicSmokeFailureOutput(readiness, model, result);
+
+      return {
+        exitCode: 1,
+        stdout: options.json === true ? `${JSON.stringify(output, null, 2)}\n` : formatPsionicSmokeFailure(output),
+        stderr: "",
+      };
+    }
+
+    const output = makePsionicSmokePassedOutput(readiness, model, result);
+
+    return {
+      exitCode: 0,
+      stdout: options.json === true ? `${JSON.stringify(output, null, 2)}\n` : formatPsionicSmokePassed(output),
       stderr: "",
     };
   });
@@ -613,6 +688,7 @@ function usage(): string {
     "  probe backend gemini smoke [--profile gemini-api] [--model gemini-3.5-flash] [--prompt TEXT]",
     "  probe backend gemini complete [--profile gemini-api] [--model gemini-3.5-flash] [--prompt TEXT]",
     "  probe backend psionic doctor [--profile psionic-qwen35-local] [--base-url URL] [--json]",
+    "  probe backend psionic smoke [--profile psionic-qwen35-local] [--base-url URL] [--model MODEL] [--prompt TEXT] [--stream] [--json]",
     "  probe apple-fm status [--base-url URL] [--profile apple-fm-local]",
     "  probe apple-fm smoke [--base-url URL] [--profile apple-fm-local] [--prompt TEXT]",
     "  probe apple-fm tool-stream-demo [--base-url URL] [--path FILE] [--prompt TEXT]",
@@ -642,6 +718,215 @@ function formatPsionicDoctor(readiness: PsionicQwenReadiness): string {
   lines.push(`receipt: ${JSON.stringify(readiness.receipt)}`);
 
   return `${lines.join("\n")}\n`;
+}
+
+interface PsionicSmokeOutputBase {
+  readonly kind: "pylon_psionic_qwen_live_smoke";
+  readonly state: "blocked" | "failed" | "passed";
+  readonly inference: "real_psionic_openai_compatible";
+  readonly profile: {
+    readonly id: string;
+    readonly kind: string;
+    readonly baseUrl: string;
+    readonly model: string;
+  };
+  readonly readiness: {
+    readonly status: string;
+    readonly ready: boolean;
+    readonly modelIds: ReadonlyArray<string>;
+    readonly observedModelRefs: ReadonlyArray<string>;
+    readonly modelRefs: ReadonlyArray<string>;
+    readonly blockerRefs: ReadonlyArray<string>;
+  };
+  readonly admissionBlockerRefs: ReadonlyArray<string>;
+  readonly availabilityReceipt: PsionicQwenReadiness["receipt"];
+}
+
+interface PsionicSmokeBlockedOutput extends PsionicSmokeOutputBase {
+  readonly state: "blocked";
+  readonly blockerRefs: ReadonlyArray<string>;
+  readonly requestedModel?: string;
+}
+
+interface PsionicSmokeFailureOutput extends PsionicSmokeOutputBase {
+  readonly state: "failed";
+  readonly model: string;
+  readonly failureClass: string;
+  readonly message: string;
+  readonly receipt?: PsionicQwenClientError["receipt"];
+}
+
+interface PsionicSmokePassedOutput extends PsionicSmokeOutputBase {
+  readonly state: "passed";
+  readonly model: string;
+  readonly text: string;
+  readonly roundTrips: number;
+  readonly usage: PsionicQwenCompleteResult["receipt"]["usage"];
+  readonly receipt: PsionicQwenCompleteResult["receipt"];
+}
+
+function makePsionicSmokeOutputBase(readiness: PsionicQwenReadiness): PsionicSmokeOutputBase {
+  return {
+    kind: "pylon_psionic_qwen_live_smoke",
+    state: "blocked",
+    inference: "real_psionic_openai_compatible",
+    profile: {
+      id: readiness.profile.id,
+      kind: readiness.profile.kind,
+      baseUrl: readiness.profile.baseUrl,
+      model: readiness.profile.model,
+    },
+    readiness: {
+      status: readiness.status,
+      ready: readiness.ready,
+      modelIds: readiness.modelIds,
+      observedModelRefs: readiness.observedModelRefs,
+      modelRefs: readiness.modelRefs,
+      blockerRefs: readiness.blockerRefs,
+    },
+    admissionBlockerRefs: readiness.blockerRefs,
+    availabilityReceipt: readiness.receipt,
+  };
+}
+
+function makePsionicSmokeBlockedOutput(
+  readiness: PsionicQwenReadiness,
+  blockerRefs: ReadonlyArray<string>,
+  requestedModel?: string,
+): PsionicSmokeBlockedOutput {
+  return {
+    ...makePsionicSmokeOutputBase(readiness),
+    state: "blocked",
+    blockerRefs,
+    requestedModel,
+  };
+}
+
+function makePsionicSmokeFailureOutput(
+  readiness: PsionicQwenReadiness,
+  model: string,
+  error: PsionicQwenClientError,
+): PsionicSmokeFailureOutput {
+  return {
+    ...makePsionicSmokeOutputBase(readiness),
+    state: "failed",
+    model,
+    failureClass: error.failureClass,
+    message: error.reason,
+    receipt: error.receipt,
+  };
+}
+
+function makePsionicSmokePassedOutput(
+  readiness: PsionicQwenReadiness,
+  model: string,
+  result: PsionicQwenCompleteResult,
+): PsionicSmokePassedOutput {
+  return {
+    ...makePsionicSmokeOutputBase(readiness),
+    state: "passed",
+    model,
+    text: result.text,
+    roundTrips: result.roundTrips,
+    usage: result.receipt.usage,
+    receipt: result.receipt,
+  };
+}
+
+function psionicSmokeBlockers(
+  readiness: PsionicQwenReadiness,
+  explicitModel?: string,
+): ReadonlyArray<string> {
+  const blockers = new Set<string>();
+  const engine = readiness.health?.execution_engine ?? readiness.health?.executionEngine ?? readiness.health?.backend;
+
+  if (readiness.status === "unreachable") {
+    blockers.add("blocker.psionic_qwen35.health_unreachable");
+  }
+
+  if (readiness.status === "malformed") {
+    blockers.add("blocker.psionic_qwen35.health_unreachable");
+  }
+
+  if (engine !== undefined && engine.toLowerCase() !== "psionic") {
+    blockers.add("blocker.psionic_qwen35.execution_engine_not_psionic");
+  }
+
+  if (!readiness.supportedEndpointRefs.includes("endpoint.psionic.v1.chat_completions")) {
+    blockers.add("blocker.psionic_qwen35.chat_completion_endpoint_missing");
+  }
+
+  if (explicitModel === undefined && psionicSmokeModel(readiness) === undefined) {
+    blockers.add("blocker.psionic_qwen35.qwen35_model_missing");
+  }
+
+  return [...blockers];
+}
+
+function psionicSmokeModel(readiness: PsionicQwenReadiness): string | undefined {
+  return firstNonRedactedString(
+    readiness.health?.default_model,
+    readiness.health?.defaultModel,
+    readiness.health?.model,
+    ...(readiness.health?.models ?? []),
+    ...readiness.modelIds,
+  );
+}
+
+function firstNonRedactedString(...values: ReadonlyArray<string | undefined>): string | undefined {
+  return values.find((value) => value !== undefined && value.trim().length > 0 && !value.startsWith("model_id.redacted."));
+}
+
+function formatPsionicSmokeBlocked(output: PsionicSmokeBlockedOutput): string {
+  return [
+    "Psionic Qwen live smoke blocked",
+    `profile: ${output.profile.id}`,
+    `kind: ${output.profile.kind}`,
+    `baseUrl: ${output.profile.baseUrl}`,
+    `requestedModel: ${output.requestedModel ?? "auto"}`,
+    `readinessStatus: ${output.readiness.status}`,
+    `blockerRefs: ${output.blockerRefs.join(", ")}`,
+    `admissionBlockerRefs: ${output.admissionBlockerRefs.length === 0 ? "none" : output.admissionBlockerRefs.join(", ")}`,
+    `availabilityReceipt: ${JSON.stringify(output.availabilityReceipt)}`,
+  ].join("\n") + "\n";
+}
+
+function formatPsionicSmokeFailure(output: PsionicSmokeFailureOutput): string {
+  const lines = [
+    "Psionic Qwen live smoke failed",
+    `profile: ${output.profile.id}`,
+    `kind: ${output.profile.kind}`,
+    `baseUrl: ${output.profile.baseUrl}`,
+    `model: ${output.model}`,
+    `failureClass: ${output.failureClass}`,
+    `message: ${output.message}`,
+    `admissionBlockerRefs: ${output.admissionBlockerRefs.length === 0 ? "none" : output.admissionBlockerRefs.join(", ")}`,
+  ];
+
+  if (output.receipt !== undefined) {
+    lines.push(`receipt: ${JSON.stringify(output.receipt)}`);
+  }
+
+  return `${lines.join("\n")}\n`;
+}
+
+function formatPsionicSmokePassed(output: PsionicSmokePassedOutput): string {
+  return [
+    "Psionic Qwen live smoke",
+    `profile: ${output.profile.id}`,
+    `kind: ${output.profile.kind}`,
+    `baseUrl: ${output.profile.baseUrl}`,
+    `model: ${output.model}`,
+    `inference: ${output.inference}`,
+    `readinessReady: ${output.readiness.ready}`,
+    `admittedModelRefs: ${output.readiness.modelRefs.length === 0 ? "none" : output.readiness.modelRefs.join(", ")}`,
+    `observedModelRefs: ${output.readiness.observedModelRefs.length === 0 ? "none" : output.readiness.observedModelRefs.join(", ")}`,
+    `admissionBlockerRefs: ${output.admissionBlockerRefs.length === 0 ? "none" : output.admissionBlockerRefs.join(", ")}`,
+    `probe: ${output.text}`,
+    `roundTrips: ${output.roundTrips}`,
+    `usage: ${formatGeminiUsage(output.usage)}`,
+    `receipt: ${JSON.stringify(output.receipt)}`,
+  ].join("\n") + "\n";
 }
 
 function formatAppleFmStatus(readiness: AppleFmReadiness): string {

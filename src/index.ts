@@ -992,6 +992,14 @@ async function main() {
         return
       }
 
+      if (command === "smoke") {
+        const result = await Effect.runPromise(runProbeCli(["backend", "psionic", "smoke", ...args.slice(2)], { env: Bun.env }))
+        if (result.stdout) process.stdout.write(result.stdout)
+        if (result.stderr) process.stderr.write(result.stderr)
+        process.exitCode = result.exitCode
+        return
+      }
+
       const options = parsePsionicOptions(args.slice(command === "models" ? 4 : 2))
       const summary = createBootstrapSummary(parseBootstrapArgs(["--json"]), Bun.env)
       if (command === "install") {

@@ -190,9 +190,10 @@ The install flow runs machine checks before downloading anything:
 - digest-addressed cache placement under the Pylon cache;
 - explicit operator consent for each model artifact.
 
-Current manifest URLs are operator- or env-supplied. The installer does not yet
-ship bundled Psionic manifest URLs because Psionic still needs to publish the
-Pylon-consumable signed sidecar/model manifests tracked in the Psionic repo.
+Current manifest URLs are operator- or env-supplied. Psionic now has
+Pylon-consumable sidecar/model manifest fixtures for the first release lane,
+but Pylon intentionally does not bundle live default manifest URLs until those
+fixtures are promoted to the public release channel.
 
 If a machine cannot run local ML workloads, Pylon should stay usable. It should
 keep the Psionic backend blocked with precise blocker refs and continue using
@@ -218,10 +219,13 @@ Add a third runtime backend family alongside Apple FM and Gemini:
 - stream mode: OpenAI-compatible SSE when streaming is requested;
 - supported endpoints: `/v1/chat/completions`, `/v1/responses`.
 
-Implemented attach-only surface:
+Implemented attach-only surfaces:
 
 ```sh
 pylon backend psionic doctor --json
+pylon backend psionic smoke --json
+pylon psionic doctor --json
+pylon psionic smoke --json
 ```
 
 The doctor checks `/health` and `/v1/models`, requires
@@ -229,6 +233,27 @@ The doctor checks `/health` and `/v1/models`, requires
 0.8B/2B Qwen3.5 refs, and returns redacted availability receipts with blocker
 refs including `connector_unconfigured`, `health_unreachable`,
 `execution_engine_not_psionic`, and `qwen35_model_missing`.
+
+The smoke command runs one bounded OpenAI-compatible chat completion through a
+local Psionic server. It may pass even while `doctor` is not launch-ready, and
+when that happens it reports the model-admission blockers separately as
+`admissionBlockerRefs`. This is deliberate: real local inference can be proven
+without pretending that an unverified GGUF artifact is safe to advertise as an
+admitted launch model.
+
+Live evidence captured on June 9, 2026:
+
+- command:
+  `PYLON_PSIONIC_BASE_URL=http://127.0.0.1:18080 bun src/index.ts psionic smoke --json`;
+- Psionic server:
+  `psionic-openai-server` with `execution_engine = psionic`, Metal backend, and
+  `Qwen_Qwen3.5-0.8B-Q4_K_M.gguf`;
+- Pylon result: `state = passed`, `inference = real_psionic_openai_compatible`,
+  text `psionic pylon live`, usage `input=21 output=5 total=26`;
+- admission result: blocked from launch advertisement by
+  `blocker.psionic_qwen35.artifact_digest_unverified` and
+  `blocker.psionic_qwen35.qwen35_model_missing` because the local Q4 artifact is
+  not one of the first-pass Q8 manifest rows.
 
 The backend should reuse Pylon's provider-neutral LLM core:
 
@@ -438,25 +463,31 @@ Add specific blockers:
 
 ### Phase 2: OpenAI-Compatible Chat Client
 
-- Add request lowering from `ProbeLlmRequest` to OpenAI-compatible
+- Implemented: request lowering from `ProbeLlmRequest` to OpenAI-compatible
   `/v1/chat/completions`.
-- Add SSE and non-stream parser for text deltas, finish events, usage, and
+- Implemented: SSE and non-stream parser for text deltas, finish events, usage,
+  and
   tool calls.
-- Reuse `dispatchProbeLlmTool`.
-- Add redacted transcript/tool-call receipts.
-- Add fake Psionic server tests for plain text, required tool, malformed
+- Implemented: reuse `dispatchProbeLlmTool`.
+- Implemented: redacted transcript/tool-call receipts.
+- Implemented: fake Psionic server tests for plain text, required tool,
+  malformed
   response, and round-trip limit.
+- Implemented: `pylon backend psionic smoke` and `pylon psionic smoke` for a
+  bounded live completion proof.
 
 ### Phase 3: First-Pass Model Gates
 
-- Add 0.8B smoke case.
-- Add 2B tool-loop case.
-- Add model preference policy:
+- Implemented: 0.8B smoke case, including the observed live Q4 smoke path as
+  non-admitted evidence.
+- Implemented: 2B tool-loop case in the client test harness.
+- Implemented: model preference policy:
   - prefer 2B for coding-agent mode;
   - allow 0.8B for smoke/fallback/simple local tasks;
   - refuse 2B-required assignments when only 0.8B is present.
-- Update launch gate copy to allow "optional local Qwen inference backend" only
-  after the attach and smoke gates pass.
+- Implemented: launch gate copy allows "optional local Qwen inference backend"
+  only after attach and smoke gates pass, and model advertisement still requires
+  artifact admission.
 
 ### Phase 4: Responses State
 
@@ -474,7 +505,10 @@ Add specific blockers:
 - Implemented: release/model manifest verification and SHA-256 verification
   before placement.
 - Implemented: digest-addressed binary/model cache layout.
-- Remaining: publish Psionic-owned signed release/model manifests.
+- Implemented upstream in Psionic: Pylon-consumable release/model manifest
+  fixtures and docs.
+- Remaining: promote Psionic-owned signed release/model manifests to public
+  release URLs.
 - Remaining: wire default manifest discovery once Psionic publishes those
   manifests.
 - Remaining: add sidecar process supervision after signed release identity
