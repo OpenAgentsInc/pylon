@@ -50,7 +50,7 @@ function logToUi(message: string) {
   logHistory.push(`[${timestamp}] ${message}`)
 
   if (logScrollBox && globalRenderer) {
-    const line = new MarkdownRenderable(globalRenderer, {
+    const line = makeLogMarkdown(globalRenderer, {
       content: `[${timestamp}] ${message}`,
       syntaxStyle,
       width: "100%",
@@ -91,6 +91,54 @@ function updateTelemetryState(state: string, model: string, vram: string) {
   if (telemetryTextRenderable) {
     telemetryTextRenderable.content = ` State: ${state}\n Model: ${model}\n VRAM:  ${vram}`
   }
+}
+
+function scrollLogBy(delta: number, unit: "absolute" | "viewport" | "content" | "step" = "absolute") {
+  logScrollBox?.scrollBy(delta, unit)
+}
+
+function routeLogMouse(event: any) {
+  if (!logScrollBox) return
+  logScrollBox.focus()
+  if (event.type === "scroll") {
+    logScrollBox.processMouseEvent?.(event)
+    event.stopPropagation?.()
+    event.preventDefault?.()
+  }
+}
+
+function makeLogMarkdown(
+  renderer: CliRenderer,
+  options: ConstructorParameters<typeof MarkdownRenderable>[1],
+) {
+  return new MarkdownRenderable(renderer, {
+    ...options,
+    onMouseDown: routeLogMouse,
+    onMouseScroll: routeLogMouse,
+  })
+}
+
+function handleLogKey(key: any, focusComposer?: () => void) {
+  if (key.name === "tab") {
+    focusComposer?.()
+  } else if (key.name === "pageup") {
+    scrollLogBy(-0.8, "viewport")
+  } else if (key.name === "pagedown") {
+    scrollLogBy(0.8, "viewport")
+  } else if (key.name === "home") {
+    scrollLogBy(-1, "content")
+  } else if (key.name === "end") {
+    scrollLogBy(1, "content")
+  } else if (key.meta && key.name === "up") {
+    scrollLogBy(-0.5, "viewport")
+  } else if (key.meta && key.name === "down") {
+    scrollLogBy(0.5, "viewport")
+  } else {
+    return false
+  }
+  key.preventDefault?.()
+  key.stopPropagation?.()
+  return true
 }
 
 // Hardware Resource & Telemetry Discovery Service
@@ -235,7 +283,7 @@ async function executeOpencodeInference(
 
   const responseLine =
     options.streamToUi && globalRenderer
-      ? new MarkdownRenderable(globalRenderer, {
+      ? makeLogMarkdown(globalRenderer, {
           content: `**OpenCode ${options.label}**: starting...`,
           syntaxStyle,
           width: "100%",
@@ -425,8 +473,10 @@ const runPylonNode = Effect.gen(function* () {
   const renderer = yield* Effect.tryPromise({
     try: () =>
       createCliRenderer({
-        screenMode: "fullscreen",
+        screenMode: "alternate-screen",
         exitOnCtrlC: true,
+        useMouse: true,
+        autoFocus: true,
         targetFps: 30,
       }),
     catch: (error) => new Error(`Failed to initialize OpenTUI renderer: ${String(error)}`),
@@ -464,9 +514,14 @@ const runPylonNode = Effect.gen(function* () {
 
   logScrollBox = new ScrollBoxRenderable(renderer, {
     scrollY: true,
+    stickyScroll: true,
+    stickyStart: "bottom",
+    focusable: true,
     flexGrow: 1,
     width: "100%",
     height: "100%",
+    onMouseDown: routeLogMouse,
+    onMouseScroll: routeLogMouse,
   })
   leftPanel.add(logScrollBox)
 
@@ -529,6 +584,18 @@ const runPylonNode = Effect.gen(function* () {
     width: "100%",
     height: "100%",
     placeholder: "Ask your agent anything...",
+    onKeyDown: (key) => {
+      if (key.name === "tab") {
+        logScrollBox?.focus()
+        key.preventDefault?.()
+        key.stopPropagation?.()
+        return
+      }
+      handleLogKey(key)
+    },
+    onMouseDown: () => {
+      composerInput.focus()
+    },
     onSubmit: async () => {
       const prompt = composerInput.plainText.trim()
       if (!prompt) return
@@ -537,7 +604,7 @@ const runPylonNode = Effect.gen(function* () {
       composerInput.setText("")
 
       // Render User prompt in logs feed
-      const userLine = new MarkdownRenderable(renderer, {
+      const userLine = makeLogMarkdown(renderer, {
         content: `**User**: ${prompt}`,
         syntaxStyle,
         width: "100%",
@@ -546,7 +613,7 @@ const runPylonNode = Effect.gen(function* () {
       logScrollBox?.add(userLine)
 
       // Setup response placeholder
-      const responseLine = new MarkdownRenderable(renderer, {
+      const responseLine = makeLogMarkdown(renderer, {
         content: `**OpenCode**: ... thinking ...`,
         syntaxStyle,
         width: "100%",
@@ -616,6 +683,10 @@ const runPylonNode = Effect.gen(function* () {
     },
   })
   composerBox.add(composerInput)
+
+  logScrollBox.handleKeyPress = (key: any) => {
+    return handleLogKey(key, () => composerInput.focus()) || false
+  }
 
   // Start OpenTUI Event Loop
   renderer.start()
