@@ -73,9 +73,10 @@ function runBackgroundEffect(name: string, effect: Effect.Effect<void, unknown>)
   })
 }
 
-function updateMdkBalance(balance: number, suffix = "Sats") {
+function updateMdkBalance(balance: number | null, suffix = "Sats") {
   if (balanceTextRenderable) {
-    balanceTextRenderable.content = ` Balance: ${balance.toLocaleString()} ${suffix}`
+    balanceTextRenderable.content =
+      balance === null ? ` Balance: -- ${suffix}` : ` Balance: ${balance.toLocaleString()} ${suffix}`
   }
 }
 
@@ -109,15 +110,15 @@ const startMdkWalletService = Effect.gen(function* () {
   let loggedOffline = false
   let loggedOnline = false
   while (true) {
-    const balance = yield* Effect.tryPromise({
-      try: async () => {
-        const proc = Bun.spawn(["npx", "--yes", "@moneydevkit/agent-wallet", "balance"], {
+    const balance = yield* Effect.promise(async () => {
+        const proc = Bun.spawn(["npx", "--yes", "@moneydevkit/agent-wallet@latest", "balance"], {
           stdout: "pipe",
           stderr: "pipe",
         })
         
         // Implement a strict 3-second timeout to prevent npx download hangs
         const textPromise = new Response(proc.stdout).text()
+        const stderrPromise = new Response(proc.stderr).text()
         const timeoutPromise = new Promise<string>((_, reject) =>
           setTimeout(() => {
             proc.kill()
@@ -125,17 +126,42 @@ const startMdkWalletService = Effect.gen(function* () {
           }, 3000)
         )
         
-        const stdout = await Promise.race([textPromise, timeoutPromise])
-        const data = JSON.parse(stdout)
+        let stdout = ""
+        try {
+          stdout = await Promise.race([textPromise, timeoutPromise])
+        } catch {
+          return null
+        }
+
+        const exitCode = await proc.exited
+        const stderr = await stderrPromise
+        if (exitCode !== 0) {
+          logToUi(`[Wallet] MDK balance command failed: ${stderr.trim() || stdout.trim() || `exit ${exitCode}`}`)
+          return null
+        }
+
+        let data: unknown
+        try {
+          data = JSON.parse(stdout)
+        } catch {
+          logToUi("[Wallet] MDK balance command returned non-JSON output.")
+          return null
+        }
+
         if (data && typeof data.balance === "number") {
           return data.balance
+        }
+        if (data && typeof data.balance_sats === "number") {
+          return data.balance_sats
         }
         if (data && typeof data.confirmed === "number") {
           return data.confirmed
         }
+        if (data && typeof data.error === "string") {
+          logToUi(`[Wallet] MDK balance unavailable: ${data.error}`)
+          return null
+        }
         return null
-      },
-      catch: () => null,
     })
 
     yield* Effect.sync(() => {
@@ -148,11 +174,10 @@ const startMdkWalletService = Effect.gen(function* () {
           loggedOffline = false
         }
       } else {
-        // Explicitly show 0 Sats and OFFLINE status (No fallback mockup balance)
-        updateMdkBalance(0)
+        updateMdkBalance(null)
         updateMdkStatus("OFFLINE", "#EF4444")
         if (!loggedOffline) {
-          logToUi("[Wallet] Local MDK daemon is not running (daemon.log ENOENT / uninitialized). Operating in OFFLINE mode.")
+          logToUi("[Wallet] Local MDK wallet balance is unavailable. Operating in OFFLINE mode.")
           loggedOffline = true
           loggedOnline = false
         }
@@ -330,7 +355,7 @@ const runPylonNode = Effect.gen(function* () {
   rightPanel.add(statusTextRenderable)
 
   balanceTextRenderable = new TextRenderable(renderer, {
-    content: " Balance: 0 Sats",
+    content: " Balance: -- Sats",
     fg: parseColor("#66D9EF"),
     width: "100%",
     height: 1,
