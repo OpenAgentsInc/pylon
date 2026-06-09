@@ -1,16 +1,33 @@
 import { Effect, Console } from "effect"
-import { createCliRenderer, BoxRenderable, TextRenderable, ScrollBoxRenderable } from "@opentui/core"
+import { createCliRenderer, BoxRenderable, TextRenderable, ScrollBoxRenderable, parseColor } from "@opentui/core"
 
-// Define our strict state schema for the earning node
-type PylonState = "Warming" | "Idle" | "Processing" | "Settling"
+// Global UI reference for log aggregation
+let logScrollBox: ScrollBoxRenderable | null = null
+
+function logToUi(message: string) {
+  if (logScrollBox) {
+    const timestamp = new Date().toISOString().slice(11, 19)
+    const line = new TextRenderable(logScrollBox.renderer, {
+      content: `[${timestamp}] ${message}`,
+      fg: parseColor("#A5D6FF"),
+      width: "100%",
+    })
+    logScrollBox.add(line)
+  } else {
+    // Silent pre-boot buffering or console logging
+    Console.log(`[BOOT] ${message}`)
+  }
+}
+
+// Effect-native logging helper
+const log = (message: string) => Effect.sync(() => logToUi(message))
 
 // Hardware Resource & Telemetry Discovery Service
 const startHardwareTelemetryLoop = Effect.gen(function* () {
-  yield* Effect.logInfo("[Telemetry] Initializing platform discovery...")
-  // Periodic polling simulation
+  yield* log("[Telemetry] Initializing platform discovery...")
   yield* Effect.repeat(
     Effect.gen(function* () {
-      yield* Effect.logDebug("[Telemetry] Polling CPU/GPU thermals and load...")
+      yield* log("[Telemetry] Polling CPU/GPU thermals and load...")
     }),
     { schedule: "10 seconds" }
   )
@@ -18,16 +35,16 @@ const startHardwareTelemetryLoop = Effect.gen(function* () {
 
 // Money Dev Kit (MDK) Wallet Sidecar Service
 const startMdkWalletService = Effect.gen(function* () {
-  yield* Effect.logInfo("[Wallet] Connecting to local MDK agent-wallet daemon on port 3001...")
-  yield* Effect.logInfo("[Wallet] Wallet connection established. Ready to receive payouts.")
+  yield* log("[Wallet] Connecting to local MDK agent-wallet daemon on port 3001...")
+  yield* log("[Wallet] Wallet connection established. Ready to receive payouts.")
 })
 
 // Nostr Continuous Presence Heartbeat Loop
 const startPresenceHeartbeatLoop = Effect.gen(function* () {
-  yield* Effect.logInfo("[Heartbeat] Initializing presence service...")
+  yield* log("[Heartbeat] Initializing presence service...")
   yield* Effect.repeat(
     Effect.gen(function* () {
-      yield* Effect.logInfo("[Heartbeat] Emitting presence signal (online, model_ready=true)")
+      yield* log("[Heartbeat] Emitting presence signal (online, model_ready=true)")
     }),
     { schedule: "30 seconds" }
   )
@@ -35,10 +52,10 @@ const startPresenceHeartbeatLoop = Effect.gen(function* () {
 
 // OpenCode Programmatic Integration Service
 const runOpencodeStartupInference = Effect.gen(function* () {
-  yield* Effect.logInfo("[OpenCode] Checking for local OpenCode CLI installation...")
+  yield* log("[OpenCode] Checking for local OpenCode CLI installation...")
   const opencodePath = Bun.which("opencode")
   if (opencodePath) {
-    yield* Effect.logInfo(`[OpenCode] Found OpenCode CLI at ${opencodePath}. Executing hello world inference...`)
+    yield* log(`[OpenCode] Found OpenCode CLI at ${opencodePath}. Executing hello world inference...`)
     
     const result = yield* Effect.tryPromise({
       try: async () => {
@@ -49,15 +66,15 @@ const runOpencodeStartupInference = Effect.gen(function* () {
       catch: (error) => new Error(`Failed to execute OpenCode inference: ${String(error)}`),
     })
     
-    yield* Effect.logInfo(`[OpenCode] Inference Response: "${result}"`)
+    yield* log(`[OpenCode] Inference Response: "${result}"`)
   } else {
-    yield* Effect.logWarning("[OpenCode] OpenCode CLI is not installed on this system.")
+    yield* log("[OpenCode] OpenCode CLI is not installed on this system.")
   }
 })
 
 // Main Pylon v0.3 Application Loop
 const runPylonNode = Effect.gen(function* () {
-  yield* Effect.logInfo("Initializing Pylon v0.3 observational earning node...")
+  yield* log("Initializing Pylon v0.3 observational earning node...")
 
   // Bootstrap OpenTUI Core
   const renderer = yield* Effect.tryPromise({
@@ -70,14 +87,27 @@ const runPylonNode = Effect.gen(function* () {
     catch: (error) => new Error(`Failed to initialize OpenTUI renderer: ${String(error)}`),
   })
 
-  // Create UI Container Layout
+  // Create UI Container Layout with borders
   const mainBox = new BoxRenderable(renderer, {
     border: true,
     borderType: "single",
+    title: " // Pylon v0.3 observational dashboard log feed ",
     width: "100%",
     height: "100%",
   })
   renderer.root.add(mainBox)
+
+  // Create an inner scrollable log box
+  logScrollBox = new ScrollBoxRenderable(renderer, {
+    scrollY: true,
+    flexGrow: 1,
+    width: "100%",
+    height: "100%",
+  })
+  mainBox.add(logScrollBox)
+
+  // Start OpenTUI Event Loop
+  renderer.start()
 
   // Start Background Services as Concurrent Fibers
   const telemetryFiber = yield* Effect.fork(startHardwareTelemetryLoop)
@@ -85,7 +115,7 @@ const runPylonNode = Effect.gen(function* () {
   const heartbeatFiber = yield* Effect.fork(startPresenceHeartbeatLoop)
   const opencodeFiber = yield* Effect.fork(runOpencodeStartupInference)
 
-  yield* Effect.logInfo("Pylon v0.3 observational dashboard active.")
+  yield* log("Pylon v0.3 observational dashboard active.")
 
   // Enter the persistent execution block
   yield* Effect.never
