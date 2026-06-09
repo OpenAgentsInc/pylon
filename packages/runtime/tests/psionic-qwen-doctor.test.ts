@@ -13,7 +13,16 @@ describe("Psionic Qwen doctor", () => {
           supported_endpoints: ["/v1/chat/completions", "/v1/responses"],
         },
         models: {
-          data: [{ id: "qwen3.5-0.8b" }, { id: "qwen3.5-2b" }],
+          data: [
+            {
+              id: "qwen3.5-0.8b",
+              artifact_digest: "afb707b6b8fac6e475acc42bc8380fc0b8d2e0e4190be5a969fbf62fcc897db5",
+            },
+            {
+              id: "qwen3.5-2b",
+              artifact_manifest_ref: "artifact.psionic.qwen35.2b.q8_0.manifest",
+            },
+          ],
         },
       }),
       now: new Date("2026-06-09T00:00:00.000Z"),
@@ -24,6 +33,8 @@ describe("Psionic Qwen doctor", () => {
     expect(readiness.status).toBe("ready");
     expect(readiness.modelRefs).toContain("model.psionic.qwen35.0_8b.q8_0");
     expect(readiness.modelRefs).toContain("model.psionic.qwen35.2b.q8_0");
+    expect(readiness.observedModelRefs).toContain("model.psionic.qwen35.0_8b.q8_0");
+    expect(readiness.codingAgentSelection?.selectedModelRef).toBe("model.psionic.qwen35.2b.q8_0");
     expect(readiness.supportedEndpointRefs).toContain("endpoint.psionic.v1.chat_completions");
     expect(readiness.supportedEndpointRefs).toContain("endpoint.psionic.v1.responses");
     expect(readiness.blockerRefs).toEqual([]);
@@ -68,7 +79,7 @@ describe("Psionic Qwen doctor", () => {
           supported_endpoints: ["/v1/chat/completions"],
         },
         models: {
-          data: [{ id: "qwen3.5-2b" }],
+          data: [{ id: "qwen3.5-2b", artifact_manifest_ref: "artifact.psionic.qwen35.2b.q8_0.manifest" }],
         },
       }),
       now: new Date("2026-06-09T00:00:00.000Z"),

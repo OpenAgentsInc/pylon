@@ -7,8 +7,9 @@ inference as an optional Pylon coding-agent backend. The attach-only backend
 profile and doctor surface are implemented for issue #13. The
 OpenAI-compatible chat/completions client, tool-call loop, streaming
 `delta.tool_calls` parser, round-trip guard, and redacted transcript/tool-call
-receipts are implemented for issue #11. Model-row admission gates, installer
-flow, and assignment gating remain tracked separately.
+receipts are implemented for issue #11. The 0.8B/2B model-row admission and
+selection gates are implemented for issue #12. Installer flow and assignment
+gating remain tracked separately.
 
 ## Source Material Read
 
@@ -243,6 +244,23 @@ Pylon should admit these two rows in the first pass:
 | --- | --- | --- |
 | `model.psionic.qwen35.0_8b.q8_0` | lowest-footprint smoke/fallback row | `/health`, `/v1/models`, artifact digest match or model manifest ref, chat completion smoke, one required-tool smoke |
 | `model.psionic.qwen35.2b.q8_0` | coding-agent/tool-loop row | all 0.8B checks plus multi-turn tool-loop smoke, same-turn parallel tool-call smoke, and transcript receipt |
+
+Implemented model-row gate:
+
+- `/v1/models` rows are decoded into observed public-safe model refs first;
+- a Qwen-looking row is not admitted unless it carries either a verified
+  artifact digest or a public-safe artifact/model manifest ref;
+- the retained 0.8B digest
+  `afb707b6b8fac6e475acc42bc8380fc0b8d2e0e4190be5a969fbf62fcc897db5`
+  admits `model.psionic.qwen35.0_8b.q8_0`;
+- 2B admission currently requires a public-safe manifest ref because this repo
+  does not yet carry a retained 2B digest authority;
+- path-like model IDs are hashed in doctor output and are not used as public
+  refs;
+- coding-agent selection prefers `model.psionic.qwen35.2b.q8_0` when both rows
+  are admitted;
+- 2B-required work is refused with
+  `blocker.psionic_qwen35.model_2b_missing` when only 0.8B is admitted.
 
 Pylon should prefer the 2B row for coding-agent tasks when both are ready. It
 should use 0.8B for:

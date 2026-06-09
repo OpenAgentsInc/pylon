@@ -91,6 +91,9 @@ The runtime includes:
 - Psionic OpenAI-compatible `/v1/chat/completions` client with text, tool-call
   loop, streaming delta tool-call parsing, max round-trip guard, and redacted
   transcript/tool-call receipts.
+- Psionic Qwen3.5 model-row admission gates for `0.8B` and `2B`: rows are
+  advertised only after a retained artifact digest or public-safe manifest ref,
+  and coding-agent selection prefers 2B when both rows are ready.
 - Provider-neutral LLM message/request/tool/usage contracts.
 - Blueprint signature lookup, tool-menu planning, Action Submission boundaries,
   and contribution release gates.

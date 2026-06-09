@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { Effect, Schema as S } from "effect";
 import { type ResolvedProbeBackendProfile, type ResolveProbeBackendProfileOptions } from "../backend-profile";
 import { resolvePsionicQwenBackendProfile, type ProbeBackendRegistryError } from "../registry";
@@ -12,13 +13,20 @@ import {
 import { dispatchProbeLlmTool } from "../../llm/tool-runtime";
 import { type ProbeLlmTools } from "../../llm/tool";
 import {
-  PSIONIC_QWEN_MODEL_REFS,
   PSIONIC_QWEN_SUPPORTED_ENDPOINT_REFS,
   PsionicQwenHealthResponse,
   PsionicQwenModelListResponse,
   type PsionicQwenHealthResponse,
   type PsionicQwenModelListResponse,
 } from "./contract";
+import {
+  admitPsionicQwenModelRows,
+  descriptorsFromPsionicModelList,
+  modelRefFromModelId,
+  selectPsionicQwenModel,
+  type PsionicQwenModelAdmission,
+  type PsionicQwenModelSelection,
+} from "./model-admission";
 import {
   finishPsionicOpenAiStreamState,
   lowerProbeLlmRequestToPsionicOpenAiBody,
@@ -53,6 +61,9 @@ export interface PsionicQwenReadiness {
   readonly health?: PsionicQwenHealthResponse;
   readonly modelIds: ReadonlyArray<string>;
   readonly modelRefs: ReadonlyArray<string>;
+  readonly observedModelRefs: ReadonlyArray<string>;
+  readonly modelAdmission?: PsionicQwenModelAdmission;
+  readonly codingAgentSelection?: PsionicQwenModelSelection;
   readonly supportedEndpointRefs: ReadonlyArray<string>;
   readonly blockerRefs: ReadonlyArray<string>;
   readonly message?: string;
@@ -461,16 +472,23 @@ export function checkPsionicQwenHealth(
       return models;
     }
 
-    const modelIds = uniqueStrings([...modelIdsFromHealth(health), ...modelIdsFromModelList(models)]);
-    const modelRefs = modelIds.flatMap(modelRefFromModelId);
+    const descriptors = descriptorsFromPsionicModelList(models);
+    const modelIds = uniqueStrings([...modelIdsFromHealth(health), ...descriptors.map((descriptor) => descriptor.id)])
+      .map(projectModelId);
+    const modelAdmission = admitPsionicQwenModelRows(descriptors);
+    const modelRefs = modelAdmission.admittedModelRefs;
+    const codingAgentSelection = selectPsionicQwenModel(modelAdmission, "coding_agent");
     const supportedEndpointRefs = endpointRefsFromHealth(health);
-    const blockerRefs = psionicBlockers(health, modelRefs);
+    const blockerRefs = psionicBlockers(health, modelRefs, modelAdmission.blockerRefs);
 
     return psionicReadiness(profile, {
       status: blockerRefs.length === 0 ? "ready" : "configured",
       health,
       modelIds,
       modelRefs,
+      observedModelRefs: modelAdmission.observedModelRefs,
+      modelAdmission,
+      codingAgentSelection,
       supportedEndpointRefs,
       blockerRefs,
       message: blockerRefs.length === 0 ? health.message : blockerRefs.join(", "),
@@ -486,6 +504,9 @@ function psionicReadiness(
     readonly health?: PsionicQwenHealthResponse;
     readonly modelIds?: ReadonlyArray<string>;
     readonly modelRefs?: ReadonlyArray<string>;
+    readonly observedModelRefs?: ReadonlyArray<string>;
+    readonly modelAdmission?: PsionicQwenModelAdmission;
+    readonly codingAgentSelection?: PsionicQwenModelSelection;
     readonly supportedEndpointRefs?: ReadonlyArray<string>;
     readonly blockerRefs?: ReadonlyArray<string>;
     readonly message?: string;
@@ -494,6 +515,7 @@ function psionicReadiness(
 ): PsionicQwenReadiness {
   const modelIds = input.modelIds ?? [];
   const modelRefs = input.modelRefs ?? [];
+  const observedModelRefs = input.observedModelRefs ?? [];
   const supportedEndpointRefs = input.supportedEndpointRefs ?? [];
   const blockerRefs = input.blockerRefs ?? [];
   const ready = input.status === "ready" && blockerRefs.length === 0;
@@ -505,6 +527,9 @@ function psionicReadiness(
     health: input.health,
     modelIds,
     modelRefs,
+    observedModelRefs,
+    modelAdmission: input.modelAdmission,
+    codingAgentSelection: input.codingAgentSelection,
     supportedEndpointRefs,
     blockerRefs,
     message: input.message,
@@ -526,6 +551,7 @@ function psionicReadiness(
 function psionicBlockers(
   health: PsionicQwenHealthResponse,
   modelRefs: ReadonlyArray<string>,
+  modelAdmissionBlockers: ReadonlyArray<string> = [],
 ): ReadonlyArray<string> {
   const blockers: string[] = [];
   const engine = health.execution_engine ?? health.executionEngine ?? health.backend;
@@ -534,11 +560,13 @@ function psionicBlockers(
     blockers.push("blocker.psionic_qwen35.execution_engine_not_psionic");
   }
 
+  blockers.push(...modelAdmissionBlockers);
+
   if (modelRefs.length === 0) {
     blockers.push("blocker.psionic_qwen35.qwen35_model_missing");
   }
 
-  return blockers;
+  return [...new Set(blockers)];
 }
 
 function endpointRefsFromHealth(health: PsionicQwenHealthResponse): ReadonlyArray<string> {
@@ -566,27 +594,12 @@ function modelIdsFromHealth(health: PsionicQwenHealthResponse): ReadonlyArray<st
   ].filter(isString));
 }
 
-function modelIdsFromModelList(models: PsionicQwenModelListResponse): ReadonlyArray<string> {
-  return uniqueStrings((models.data ?? []).map((model) => typeof model === "string" ? model : model.id));
-}
-
-export function modelRefFromModelId(modelId: string): ReadonlyArray<string> {
-  const normalized = modelId.toLowerCase().replace(/[-/.:]+/g, "_");
-  const isQwen35 = normalized.includes("qwen3_5") || normalized.includes("qwen35") || normalized.includes("qwen_3_5");
-
-  if (!isQwen35) {
-    return [];
+function projectModelId(modelId: string): string {
+  if (modelId.includes("/") || modelId.includes("\\") || modelId.includes("~")) {
+    return `model_id.redacted.${createHash("sha256").update(modelId).digest("hex").slice(0, 12)}`;
   }
 
-  if (normalized.includes("0_8") || normalized.includes("0.8") || normalized.includes("08b")) {
-    return [PSIONIC_QWEN_MODEL_REFS.qwen35_0_8b];
-  }
-
-  if (normalized.includes("2b") || normalized.includes("2_b")) {
-    return [PSIONIC_QWEN_MODEL_REFS.qwen35_2b];
-  }
-
-  return [];
+  return modelId;
 }
 
 function normalizeHealthResponse(value: unknown): unknown {

@@ -11,6 +11,11 @@ export const PSIONIC_QWEN_MODEL_REFS = {
   qwen35_2b: "model.psionic.qwen35.2b.q8_0",
 } as const;
 
+export const PSIONIC_QWEN_KNOWN_ARTIFACT_DIGESTS = {
+  qwen35_0_8b: "afb707b6b8fac6e475acc42bc8380fc0b8d2e0e4190be5a969fbf62fcc897db5",
+  qwen35_2b: undefined,
+} as const;
+
 export const PSIONIC_QWEN_SUPPORTED_ENDPOINT_REFS = {
   health: "endpoint.psionic.health",
   models: "endpoint.psionic.v1.models",
@@ -38,6 +43,11 @@ export const PsionicQwenModelListResponse = S.Struct({
   data: S.optional(S.Array(S.Union([S.String, S.Struct({
     id: S.String,
     object: S.optional(S.String),
+    artifact_digest: S.optional(S.String),
+    artifactDigest: S.optional(S.String),
+    artifact_manifest_ref: S.optional(S.String),
+    artifactManifestRef: S.optional(S.String),
+    metadata: S.optional(S.Record(S.String, S.Unknown)),
   })]))),
 });
 export type PsionicQwenModelListResponse = typeof PsionicQwenModelListResponse.Type;
