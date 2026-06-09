@@ -22,6 +22,8 @@ let statusTextRenderable: TextRenderable | null = null
 let telemetryTextRenderable: TextRenderable | null = null
 
 const logHistory: string[] = []
+const terminalScrollLockOn = "\x1b[?1007h"
+const terminalScrollLockOff = "\x1b[?1007l"
 
 const syntaxStyle = SyntaxStyle.fromStyles({
   default: { fg: parseColor("#E6EDF3") },
@@ -93,18 +95,64 @@ function updateTelemetryState(state: string, model: string, vram: string) {
   }
 }
 
+function installTerminalScrollLock() {
+  if (!process.stdout.isTTY) {
+    return () => {}
+  }
+
+  process.stdout.write(terminalScrollLockOn)
+  let restored = false
+  const restore = () => {
+    if (restored) return
+    restored = true
+    process.stdout.write(terminalScrollLockOff)
+  }
+
+  process.once("exit", restore)
+
+  return restore
+}
+
 function scrollLogBy(delta: number, unit: "absolute" | "viewport" | "content" | "step" = "absolute") {
   logScrollBox?.scrollBy(delta, unit)
+}
+
+function scrollLogFromWheel(event: any) {
+  if (!logScrollBox || event.type !== "scroll") return false
+  const direction = event.scroll?.direction
+  const delta = Math.max(1, Math.round(event.scroll?.delta ?? 3))
+  if (direction === "up") {
+    logScrollBox.scrollTop = logScrollBox.scrollTop - delta
+  } else if (direction === "down") {
+    logScrollBox.scrollTop = logScrollBox.scrollTop + delta
+  } else if (direction === "left") {
+    logScrollBox.scrollLeft = logScrollBox.scrollLeft - delta
+  } else if (direction === "right") {
+    logScrollBox.scrollLeft = logScrollBox.scrollLeft + delta
+  } else {
+    return false
+  }
+  return true
 }
 
 function routeLogMouse(event: any) {
   if (!logScrollBox) return
   logScrollBox.focus()
   if (event.type === "scroll") {
-    logScrollBox.processMouseEvent?.(event)
+    scrollLogFromWheel(event)
     event.stopPropagation?.()
     event.preventDefault?.()
   }
+}
+
+function sinkRootScroll(event: any) {
+  if (event.type !== "scroll") return
+  if (logScrollBox) {
+    logScrollBox.focus()
+    scrollLogFromWheel(event)
+  }
+  event.stopPropagation?.()
+  event.preventDefault?.()
 }
 
 function makeLogMarkdown(
@@ -468,6 +516,7 @@ const runOpencodeStartupInference = Effect.gen(function* () {
 const runPylonNode = Effect.gen(function* () {
   const smokeDashboard = Bun.argv.includes("--smoke-dashboard") || Bun.env.PYLON_SMOKE_DASHBOARD === "1"
   yield* log("Initializing Pylon v0.3 observational earning node...")
+  const restoreTerminalScrollLock = installTerminalScrollLock()
 
   // Bootstrap OpenTUI Core
   const renderer = yield* Effect.tryPromise({
@@ -489,6 +538,7 @@ const runPylonNode = Effect.gen(function* () {
     flexDirection: "column",
     width: "100%",
     height: "100%",
+    onMouseScroll: sinkRootScroll,
   })
   renderer.root.add(outerContainer)
 
@@ -709,6 +759,7 @@ const runPylonNode = Effect.gen(function* () {
   if (smokeDashboard) {
     yield* log("Pylon v0.3 dashboard smoke complete.")
     renderer.stop?.()
+    restoreTerminalScrollLock()
     yield* Effect.sync(() => process.exit(0))
     return
   }
