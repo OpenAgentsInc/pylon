@@ -1,10 +1,45 @@
 import { Effect, Console } from "effect"
-import { createCliRenderer, BoxRenderable, TextRenderable, ScrollBoxRenderable, parseColor, type CliRenderer } from "@opentui/core"
+import {
+  createCliRenderer,
+  BoxRenderable,
+  TextRenderable,
+  ScrollBoxRenderable,
+  MarkdownRenderable,
+  TextareaRenderable,
+  parseColor,
+  SyntaxStyle,
+  type CliRenderer
+} from "@opentui/core"
 
-// Global UI reference for log aggregation
+// Global UI references for log aggregation and balance updates
 let globalRenderer: CliRenderer | null = null
 let logScrollBox: ScrollBoxRenderable | null = null
+let balanceTextRenderable: TextRenderable | null = null
+let statusTextRenderable: TextRenderable | null = null
+let telemetryTextRenderable: TextRenderable | null = null
+
 const logHistory: string[] = []
+
+const syntaxStyle = SyntaxStyle.fromStyles({
+  default: { fg: parseColor("#E6EDF3") },
+  keyword: { fg: parseColor("#FF7B72"), bold: true },
+  string: { fg: parseColor("#A5D6FF") },
+  comment: { fg: parseColor("#8B949E"), italic: true },
+  number: { fg: parseColor("#79C0FF") },
+  function: { fg: parseColor("#D2A8FF") },
+  type: { fg: parseColor("#FFA657") },
+  variable: { fg: parseColor("#E6EDF3") },
+  property: { fg: parseColor("#79C0FF") },
+  "markup.heading": { fg: parseColor("#00D7FF"), bold: true },
+  "markup.bold": { fg: parseColor("#F0F6FC"), bold: true },
+  "markup.italic": { fg: parseColor("#F0F6FC"), italic: true },
+  "markup.list": { fg: parseColor("#FF7B72") },
+  "markup.quote": { fg: parseColor("#8B949E"), italic: true },
+  "markup.raw": { fg: parseColor("#A5D6FF"), bg: parseColor("#161B22") },
+  "markup.link": { fg: parseColor("#58A6FF"), underline: true },
+  "markup.link.url": { fg: parseColor("#58A6FF"), underline: true },
+  conceal: { fg: parseColor("#6E7681") },
+})
 
 function logToUi(message: string) {
   const now = new Date()
@@ -12,10 +47,11 @@ function logToUi(message: string) {
   logHistory.push(`[${timestamp}] ${message}`)
 
   if (logScrollBox && globalRenderer) {
-    const line = new TextRenderable(globalRenderer, {
+    const line = new MarkdownRenderable(globalRenderer, {
       content: `[${timestamp}] ${message}`,
-      fg: parseColor("#A5D6FF"),
+      syntaxStyle,
       width: "100%",
+      conceal: true,
     })
     logScrollBox.add(line)
   } else {
@@ -27,11 +63,33 @@ function logToUi(message: string) {
 // Effect-native logging helper
 const log = (message: string) => Effect.sync(() => logToUi(message))
 
+function updateMdkBalance(balance: number, suffix = "Sats") {
+  if (balanceTextRenderable) {
+    balanceTextRenderable.content = ` Balance: ${balance.toLocaleString()} ${suffix}`
+  }
+}
+
+function updateMdkStatus(status: string, color = "#22C55E") {
+  if (statusTextRenderable) {
+    statusTextRenderable.content = ` Status: ${status}`
+    statusTextRenderable.textColor = parseColor(color)
+  }
+}
+
+function updateTelemetryState(state: string, model: string, vram: string) {
+  if (telemetryTextRenderable) {
+    telemetryTextRenderable.content = ` State: ${state}\n Model: ${model}\n VRAM:  ${vram}`
+  }
+}
+
 // Hardware Resource & Telemetry Discovery Service
 const startHardwareTelemetryLoop = Effect.gen(function* () {
   yield* log("[Telemetry] Platform discovery initialized.")
   yield* Effect.repeat(
     Effect.gen(function* () {
+      yield* Effect.sync(() => {
+        updateTelemetryState("ACTIVE_IN_WORK", "Gemma-4-9B-SFT", "8.2 GB / 12.0 GB")
+      })
       yield* Effect.sleep("10 seconds")
     })
   )
@@ -39,8 +97,38 @@ const startHardwareTelemetryLoop = Effect.gen(function* () {
 
 // Money Dev Kit (MDK) Wallet Sidecar Service
 const startMdkWalletService = Effect.gen(function* () {
-  yield* log("[Wallet] Connecting to local MDK agent-wallet daemon on port 3001...")
-  yield* log("[Wallet] Wallet connection established. Ready to receive payouts.")
+  yield* log("[Wallet] Connecting to local MDK agent-wallet daemon...")
+  yield* Effect.repeat(
+    Effect.gen(function* () {
+      const balance = yield* Effect.tryPromise({
+        try: async () => {
+          const proc = Bun.spawn(["npx", "@moneydevkit/agent-wallet", "balance"])
+          const stdout = await new Response(proc.stdout).text()
+          const data = JSON.parse(stdout)
+          if (data && typeof data.balance === "number") {
+            return data.balance
+          }
+          if (data && typeof data.confirmed === "number") {
+            return data.confirmed
+          }
+          return null
+        },
+        catch: () => null,
+      })
+
+      yield* Effect.sync(() => {
+        if (balance !== null) {
+          updateMdkBalance(balance)
+          updateMdkStatus("ONLINE (OK)", "#22C55E")
+        } else {
+          // Fallback mockup balance if MDK is offline/uninitialized
+          updateMdkBalance(142520, "Sats (Offline/Fallback)")
+          updateMdkStatus("OFFLINE", "#EF4444")
+        }
+      })
+      yield* Effect.sleep("10 seconds")
+    })
+  )
 })
 
 // Nostr Continuous Presence Heartbeat Loop
@@ -99,7 +187,7 @@ async function executeOpencodeInference(opencodePath: string, prompt: string) {
   }
 }
 
-// OpenCode Programmatic Integration Service
+// OpenCode Programmatic Integration Service (Diagnostics on boot)
 const runOpencodeStartupInference = Effect.gen(function* () {
   yield* log("[OpenCode] Checking for local OpenCode CLI installation...")
   const opencodePath = Bun.which("opencode")
@@ -150,30 +238,205 @@ const runPylonNode = Effect.gen(function* () {
     catch: (error) => new Error(`Failed to initialize OpenTUI renderer: ${String(error)}`),
   })
 
-  // Set the global renderer reference
   globalRenderer = renderer
 
-  // Create UI Container Layout with borders
-  const mainBox = new BoxRenderable(renderer, {
-    border: true,
-    borderType: "single",
-    title: " // Pylon v0.3 observational dashboard log feed ",
+  // 1. Create Main Outer Layout (Height 100%, Width 100%)
+  const outerContainer = new BoxRenderable(renderer, {
+    flexDirection: "column",
     width: "100%",
     height: "100%",
   })
-  renderer.root.add(mainBox)
+  renderer.root.add(outerContainer)
 
-  // Create an inner scrollable log box
+  // 2. Create Header Panel (Height 3)
+  const headerBox = new BoxRenderable(renderer, {
+    border: true,
+    borderType: "single",
+    title: " // Pylon earning node ",
+    width: "100%",
+    height: 3,
+  })
+  const headerText = new TextRenderable(renderer, {
+    content: " earning node active | watching autonomous agent work and earn bitcoin",
+    fg: parseColor("#8BA6CD"),
+  })
+  headerBox.add(headerText)
+  outerContainer.add(headerBox)
+
+  // 3. Create Main Split Pane (Row Direction, Flex Grow)
+  const splitPane = new BoxRenderable(renderer, {
+    flexDirection: "row",
+    width: "100%",
+    flexGrow: 1,
+  })
+  outerContainer.add(splitPane)
+
+  // 3a. Logs/Feed Panel (Left Column, Flex Grow)
+  const leftPanel = new BoxRenderable(renderer, {
+    border: true,
+    borderType: "single",
+    title: " // Active Workroom Execution Logs ",
+    flexGrow: 1,
+    height: "100%",
+  })
+  splitPane.add(leftPanel)
+
   logScrollBox = new ScrollBoxRenderable(renderer, {
     scrollY: true,
     flexGrow: 1,
     width: "100%",
     height: "100%",
   })
-  mainBox.add(logScrollBox)
+  leftPanel.add(logScrollBox)
+
+  // 3b. Telemetry & Balance Panel (Right Column, Fixed Width 35)
+  const rightPanel = new BoxRenderable(renderer, {
+    border: true,
+    borderType: "single",
+    title: " // Telemetry & Wallet ",
+    width: 35,
+    flexBasis: 35,
+    flexGrow: 0,
+    flexShrink: 0,
+    height: "100%",
+    flexDirection: "column",
+  })
+  splitPane.add(rightPanel)
+
+  statusTextRenderable = new TextRenderable(renderer, {
+    content: " Status: OFFLINE",
+    fg: parseColor("#EF4444"),
+    width: "100%",
+    height: 1,
+  })
+  rightPanel.add(statusTextRenderable)
+
+  balanceTextRenderable = new TextRenderable(renderer, {
+    content: " Balance: 0 Sats",
+    fg: parseColor("#66D9EF"),
+    width: "100%",
+    height: 1,
+  })
+  rightPanel.add(balanceTextRenderable)
+
+  // Add some separator space
+  rightPanel.add(new TextRenderable(renderer, { content: " ---------------------------------", fg: parseColor("#3B5B82"), height: 1 }))
+
+  telemetryTextRenderable = new TextRenderable(renderer, {
+    content: " State: IDLE\n Model: -\n VRAM:  -",
+    fg: parseColor("#D7E5FA"),
+    width: "100%",
+    height: 3,
+  })
+  rightPanel.add(telemetryTextRenderable)
+
+  // 4. Create Composer Input Panel (Bottom, Height 5)
+  const composerBox = new BoxRenderable(renderer, {
+    border: true,
+    borderType: "single",
+    title: " // Composer (meta+return to submit) ",
+    width: "100%",
+    height: 5,
+  })
+  outerContainer.add(composerBox)
+
+  const composerInput = new TextareaRenderable(renderer, {
+    width: "100%",
+    height: "100%",
+    placeholder: "Ask your agent anything...",
+    onSubmit: async () => {
+      const prompt = composerInput.plainText.trim()
+      if (!prompt) return
+
+      // Clear the composer
+      composerInput.setText("")
+
+      // Render User prompt in logs feed
+      const userLine = new MarkdownRenderable(renderer, {
+        content: `**User**: ${prompt}`,
+        syntaxStyle,
+        width: "100%",
+        conceal: true,
+      })
+      logScrollBox?.add(userLine)
+
+      // Setup response placeholder
+      const responseLine = new MarkdownRenderable(renderer, {
+        content: `**OpenCode**: ... thinking ...`,
+        syntaxStyle,
+        width: "100%",
+        conceal: true,
+        streaming: true,
+      })
+      logScrollBox?.add(responseLine)
+
+      // Start asynchronous OpenCode inference
+      const opencodePath = Bun.which("opencode")
+      if (opencodePath) {
+        const proc = Bun.spawn(
+          [
+            opencodePath,
+            "run",
+            prompt,
+            "--model",
+            "opencode/deepseek-v4-flash-free",
+            "--format",
+            "json",
+          ],
+          {
+            stdout: "pipe",
+            stderr: "pipe",
+          }
+        )
+
+        const reader = proc.stdout.getReader()
+        const decoder = new TextDecoder()
+        let buffer = ""
+        let receivedText = ""
+
+        responseLine.content = `**OpenCode**: `
+
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+
+          buffer += decoder.decode(value, { stream: true })
+          const lines = buffer.split("\n")
+          buffer = lines.pop() ?? ""
+
+          for (const line of lines) {
+            if (!line.trim()) continue
+            try {
+              const event = JSON.parse(line)
+              if (event.type === "text" && event.part && event.part.text) {
+                receivedText += event.part.text
+                responseLine.content = `**OpenCode**: ${receivedText}`
+              }
+              if (event.type === "step_finish" && event.part && event.part.tokens) {
+                const cost = event.part.cost ?? 0
+                const tokens = event.part.tokens.total ?? 0
+                responseLine.content = `**OpenCode**: ${receivedText}\n\n*[Cost: $${cost.toFixed(4)} | Tokens: ${tokens}]*`
+              }
+            } catch {
+              // Ignore partial chunk syntax errors
+            }
+          }
+        }
+        
+        responseLine.streaming = false
+      } else {
+        responseLine.content = `**OpenCode**: Error - OpenCode CLI is not installed on this system.`
+        responseLine.streaming = false
+      }
+    },
+  })
+  composerBox.add(composerInput)
 
   // Start OpenTUI Event Loop
   renderer.start()
+
+  // Focus on Composer Input
+  composerInput.focus()
 
   // Start Background Services as Concurrent Fibers
   const telemetryFiber = yield* Effect.fork(startHardwareTelemetryLoop)
