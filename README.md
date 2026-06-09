@@ -129,3 +129,13 @@ The default dashboard includes bounded operate, wallet, inspect, and recovery
 state. The headless snapshot is for support and service-manager runs: it shows
 refs, blockers, readiness, and recovery gates without exposing raw wallet
 material, provider tokens, private repo content, or local cache paths.
+
+## Release Gate
+
+```sh
+bun run release:gate
+```
+
+The local release gate runs tests, JSON smokes, dashboard startup smoke, package
+dry-run, and local package install smoke. Public copy must stay inside the
+allowed claim matrix in `docs/launch-gates-no-overclaim.md`.
