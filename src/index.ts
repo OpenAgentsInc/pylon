@@ -33,6 +33,16 @@ import {
   receiveWithMdk,
   sendWithMdk,
 } from "./wallet"
+import {
+  acceptAssignment,
+  pollAssignments,
+  runNoSpendAssignment,
+  submitAssignmentCloseout,
+  submitAssignmentProgress,
+  type AssignmentCloseout,
+  type AssignmentProgress,
+  type PylonAssignmentLease,
+} from "./assignment"
 
 // Global UI references for log aggregation and balance updates
 let globalRenderer: CliRenderer | null = null
@@ -943,6 +953,55 @@ async function main() {
       throw new Error(`unknown wallet command: ${command ?? ""}`)
     } catch (error) {
       process.stderr.write(`Pylon wallet failed: ${error instanceof Error ? error.message : String(error)}\n`)
+      process.exitCode = 1
+      return
+    }
+  }
+
+  if (args[0] === "assignment") {
+    try {
+      const command = args[1]
+      const options = parseKeyValueOptions(args.slice(2))
+      const baseUrl = options["base-url"] ?? Bun.env.PYLON_OPENAGENTS_BASE_URL
+      if (!baseUrl) {
+        throw new Error("assignment commands require --base-url or PYLON_OPENAGENTS_BASE_URL")
+      }
+      const summary = createBootstrapSummary(parseBootstrapArgs(["--json"]), Bun.env)
+      const clientOptions = { baseUrl }
+      if (command === "poll") {
+        const leases = await pollAssignments(summary, clientOptions)
+        process.stdout.write(`${JSON.stringify({ leases }, null, 2)}\n`)
+        return
+      }
+      if (command === "accept") {
+        const leaseJson = options.lease
+        if (!leaseJson) throw new Error("assignment accept requires --lease JSON")
+        const result = await acceptAssignment(summary, JSON.parse(leaseJson) as PylonAssignmentLease, clientOptions)
+        process.stdout.write(`${JSON.stringify(result, null, 2)}\n`)
+        return
+      }
+      if (command === "progress") {
+        const progressJson = options.progress
+        if (!progressJson) throw new Error("assignment progress requires --progress JSON")
+        const result = await submitAssignmentProgress(summary, JSON.parse(progressJson) as AssignmentProgress, clientOptions)
+        process.stdout.write(`${JSON.stringify(result, null, 2)}\n`)
+        return
+      }
+      if (command === "closeout") {
+        const closeoutJson = options.closeout
+        if (!closeoutJson) throw new Error("assignment closeout requires --closeout JSON")
+        const result = await submitAssignmentCloseout(summary, JSON.parse(closeoutJson) as AssignmentCloseout, clientOptions)
+        process.stdout.write(`${JSON.stringify(result, null, 2)}\n`)
+        return
+      }
+      if (command === "run-no-spend") {
+        const result = await runNoSpendAssignment(summary, clientOptions)
+        process.stdout.write(`${JSON.stringify(result, null, 2)}\n`)
+        return
+      }
+      throw new Error(`unknown assignment command: ${command ?? ""}`)
+    } catch (error) {
+      process.stderr.write(`Pylon assignment failed: ${error instanceof Error ? error.message : String(error)}\n`)
       process.exitCode = 1
       return
     }

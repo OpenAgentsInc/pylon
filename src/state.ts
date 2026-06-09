@@ -11,6 +11,7 @@ export type PylonPaths = BootstrapSummary["paths"] & {
   identity: string
   runtimeState: string
   presenceState: string
+  assignmentState: string
   ledger: string
 }
 
@@ -102,6 +103,7 @@ export function resolveStatePaths(paths: BootstrapSummary["paths"]): PylonPaths 
     identity: `${paths.home}/identity.json`,
     runtimeState: `${paths.home}/runtime-state.json`,
     presenceState: `${paths.home}/presence-state.json`,
+    assignmentState: `${paths.home}/assignment-state.json`,
     ledger: `${paths.home}/ledger.jsonl`,
   }
 }

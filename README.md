@@ -64,6 +64,24 @@ pylon wallet send --destination-ref payout.bolt12.<hash> --amount 21
 pylon wallet admit-payout-target --kind bolt12_offer --ref payout.bolt12.<hash>
 ```
 
+Wallet status uses MDK readiness evidence and records idempotent local ledger
+events. Send readiness remains blocked unless MDK returns explicit evidence;
+balance and receive readiness are not treated as spendable settlement.
+
+Assignment worker commands are available for signed fake-server and live API
+smokes:
+
+```sh
+pylon assignment poll --base-url https://openagents.com
+pylon assignment run-no-spend --base-url https://openagents.com
+```
+
+`run-no-spend` polls for a no-spend lease, applies local admission gates,
+accepts idempotently, submits progress with artifact/proof refs, and closes the
+assignment with `settlementState: not_applicable` and
+`payoutClaimAllowed: false`. Paid leases are blocked unless wallet send
+readiness is explicitly proven.
+
 The runtime includes:
 
 - Apple Foundation Models bridge support, readiness receipts, streaming tool
