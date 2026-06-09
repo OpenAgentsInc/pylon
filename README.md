@@ -106,3 +106,15 @@ capacity fields are modeled separately from payout readiness.
 This does not advertise neural training or Qwen work. Those tracks remain
 postponed until the GEPA lease, closeout, import, and payment-mode gates are
 solid.
+
+## Host Inventory
+
+```sh
+pylon inventory --json
+```
+
+`status --json` and the dashboard include the same host inventory projection:
+supported platform, CPU/memory/disk counts, network counts, accelerator class,
+backend health refs, model-cache state, and blocker refs. The projection does
+not expose interface names, cache paths, env dumps, provider auth, private
+topology, or raw local model paths.

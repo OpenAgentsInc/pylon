@@ -43,6 +43,7 @@ import {
   type AssignmentProgress,
   type PylonAssignmentLease,
 } from "./assignment"
+import { discoverHostInventory } from "./inventory"
 
 // Global UI references for log aggregation and balance updates
 let globalRenderer: CliRenderer | null = null
@@ -269,8 +270,27 @@ function handleLogKey(key: any, focusComposer?: () => void) {
 const startHardwareTelemetryLoop = Effect.gen(function* () {
   yield* log("[Telemetry] Platform discovery initialized.")
   while (true) {
+    const inventory = yield* Effect.tryPromise({
+      try: () => discoverHostInventory(),
+      catch: (error) => new Error(`inventory discovery failed: ${String(error)}`),
+    }).pipe(
+      Effect.catch((error) =>
+        Effect.sync(() => {
+          logToUi(`[Telemetry] Inventory unavailable: ${error.message}`)
+          return null
+        }),
+      ),
+    )
     yield* Effect.sync(() => {
-      updateTelemetryState("IDLE", "None (Observational)", "0.0 GB / 0.0 GB")
+      if (!inventory) {
+        updateTelemetryState("UNAVAILABLE", "inventory unavailable", "--")
+        return
+      }
+      const readyBackends = inventory.backendHealth.filter((backend) => backend.state === "ready" || backend.state === "configured")
+      const model = readyBackends[0]?.modelRef ?? "None"
+      const vram = inventory.accelerator.vramGb === null ? "--" : `${inventory.accelerator.vramGb.toFixed(1)} GB`
+      const state = inventory.eligibleInventoryCount > 0 ? "INVENTORY FRESH" : "INVENTORY BLOCKED"
+      updateTelemetryState(state, model, vram)
     })
     yield* Effect.sleep("10 seconds")
   }
@@ -882,7 +902,14 @@ async function main() {
   if (args[0] === "status" && args.includes("--json")) {
     const summary = createBootstrapSummary(parseBootstrapArgs(["--json"]), Bun.env)
     const state = await ensurePylonLocalState(summary)
-    process.stdout.write(`${JSON.stringify(projectPublicStatus(state), null, 2)}\n`)
+    const inventory = await discoverHostInventory({ env: Bun.env })
+    process.stdout.write(`${JSON.stringify(projectPublicStatus(state, inventory), null, 2)}\n`)
+    return
+  }
+
+  if (args[0] === "inventory" && args.includes("--json")) {
+    const inventory = await discoverHostInventory({ env: Bun.env })
+    process.stdout.write(`${JSON.stringify(inventory, null, 2)}\n`)
     return
   }
 

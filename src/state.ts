@@ -4,6 +4,7 @@ import { createHash, generateKeyPairSync, randomUUID } from "node:crypto"
 import { hostname } from "node:os"
 import { dirname } from "node:path"
 import type { BootstrapSummary } from "./bootstrap"
+import type { PylonHostInventoryProjection } from "./inventory"
 
 export type PylonLifecycleState = "offline" | "online" | "paused" | "degraded" | "assignment-ready"
 
@@ -80,13 +81,13 @@ export type PublicProjection =
   | Record<string, unknown>
 
 const forbiddenKeyPattern =
-  /(^|[._-])(wallet_seed|seed|mnemonic|private_key|privatekey|preimage|bearer|access_token|api_key|apikey|provider_token|provider_auth|raw_prompt|raw_prompts|private_repo|repo_content|private_topology|capacity_pool_secret|internal_accounting_credential|invoice|offer|payment_hash|payment_preimage|secret|password|xprv)([._-]|$)/i
+  /(^|[._-])(wallet_seed|seed|mnemonic|private_key|privatekey|preimage|bearer|access_token|api_key|apikey|provider_token|provider_auth|raw_prompt|raw_prompts|private_repo|repo_content|private_topology|cache_path|cachepath|env_dump|environment_dump|capacity_pool_secret|internal_accounting_credential|invoice|offer|payment_hash|payment_preimage|secret|password|xprv)([._-]|$)/i
 
 const forbiddenExactKeyPattern =
-  /^(walletSeed|seed|mnemonic|privateKey|private_key|preimage|bearer|accessToken|apiKey|providerToken|providerAuth|rawPrompt|rawPrompts|privateRepo|repoContent|privateTopology|capacityPoolSecret|internalAccountingCredential|invoice|offer|paymentHash|paymentPreimage|secret|password|xprv)$/i
+  /^(walletSeed|seed|mnemonic|privateKey|private_key|preimage|bearer|accessToken|apiKey|providerToken|providerAuth|rawPrompt|rawPrompts|privateRepo|repoContent|privateTopology|cachePath|envDump|environmentDump|capacityPoolSecret|internalAccountingCredential|invoice|offer|paymentHash|paymentPreimage|secret|password|xprv)$/i
 
 const forbiddenStringPattern =
-  /\b(wallet seed|mnemonic|private key|payment preimage|bearer\s+[a-z0-9._-]+|sk-[a-z0-9_-]+|lnbc[a-z0-9]+|lntb[a-z0-9]+|lno[a-z0-9]+|private-repo:\/\/|private_repo|raw prompt|capacity pool secret|internal accounting credential|xprv)\b/i
+  /\b(wallet seed|mnemonic|private key|payment preimage|bearer\s+[a-z0-9._-]+|sk-[a-z0-9_-]+|lnbc[a-z0-9]+|lntb[a-z0-9]+|lno[a-z0-9]+|private-repo:\/\/|private_repo|raw prompt|capacity pool secret|internal accounting credential|xprv|\/Users\/[^\s]+\/\.cache|\/home\/[^\s]+\/\.cache)\b/i
 
 function stableHash(input: string, length = 24) {
   return createHash("sha256").update(input).digest("hex").slice(0, length)
@@ -242,7 +243,7 @@ export function assertPublicProjectionSafe(value: unknown, path = "projection"):
   }
 }
 
-export function projectPublicStatus(state: PylonLocalState) {
+export function projectPublicStatus(state: PylonLocalState, inventory?: PylonHostInventoryProjection) {
   const projection = {
     kind: "status",
     state: {
@@ -258,6 +259,7 @@ export function projectPublicStatus(state: PylonLocalState) {
       identity: state.identity,
       runtime: state.runtime,
       presence: state.presence,
+      inventory,
     },
   } as const
 
