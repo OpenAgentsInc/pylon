@@ -27,6 +27,12 @@ import {
   registerPylon,
   sendHeartbeat,
 } from "./presence"
+import {
+  admitPayoutTarget,
+  classifyMdkWallet,
+  receiveWithMdk,
+  sendWithMdk,
+} from "./wallet"
 
 // Global UI references for log aggregation and balance updates
 let globalRenderer: CliRenderer | null = null
@@ -266,66 +272,21 @@ const startMdkWalletService = Effect.gen(function* () {
   let loggedOffline = false
   let loggedOnline = false
   while (true) {
-    const balance = yield* Effect.promise(async () => {
-        const proc = Bun.spawn(["npx", "--yes", "@moneydevkit/agent-wallet@latest", "balance"], {
-          stdout: "pipe",
-          stderr: "pipe",
-        })
-        
-        // Implement a strict 3-second timeout to prevent npx download hangs
-        const textPromise = new Response(proc.stdout).text()
-        const stderrPromise = new Response(proc.stderr).text()
-        const timeoutPromise = new Promise<string>((_, reject) =>
-          setTimeout(() => {
-            proc.kill()
-            reject(new Error("Timeout"))
-          }, 3000)
-        )
-        
-        let stdout = ""
-        try {
-          stdout = await Promise.race([textPromise, timeoutPromise])
-        } catch {
-          return null
-        }
-
-        const exitCode = await proc.exited
-        const stderr = await stderrPromise
-        if (exitCode !== 0) {
-          logToUi(`[Wallet] MDK balance command failed: ${stderr.trim() || stdout.trim() || `exit ${exitCode}`}`)
-          return null
-        }
-
-        let data: unknown
-        try {
-          data = JSON.parse(stdout)
-        } catch {
-          logToUi("[Wallet] MDK balance command returned non-JSON output.")
-          return null
-        }
-
-        if (data && typeof data.balance === "number") {
-          return data.balance
-        }
-        if (data && typeof data.balance_sats === "number") {
-          return data.balance_sats
-        }
-        if (data && typeof data.confirmed === "number") {
-          return data.confirmed
-        }
-        if (data && typeof data.error === "string") {
-          logToUi(`[Wallet] MDK balance unavailable: ${data.error}`)
-          return null
-        }
+    const status = yield* Effect.promise(async () => {
+      try {
+        return await classifyMdkWallet()
+      } catch (error) {
+        logToUi(`[Wallet] MDK status unavailable: ${String(error)}`)
         return null
+      }
     })
 
     yield* Effect.sync(() => {
-      if (balance !== null) {
-        updateMdkBalance(balance)
+      if (status?.daemonOnline && status.balanceSats !== null) {
+        updateMdkBalance(status.balanceSats)
         updateMdkStatus("ONLINE (OK)", "#58A6FF")
         if (!loggedOnline) {
-          logToUi("[Wallet] MDK agent-wallet daemon connected successfully. Balance synchronized.")
+          logToUi(`[Wallet] MDK agent-wallet daemon connected. Readiness: ${status.readiness}.`)
           loggedOnline = true
           loggedOffline = false
         }
@@ -877,6 +838,10 @@ function parsePresenceOptions(args: string[]) {
   return options
 }
 
+function parseKeyValueOptions(args: string[]) {
+  return parsePresenceOptions(args)
+}
+
 async function main() {
   const args = Bun.argv.slice(2)
 
@@ -936,6 +901,48 @@ async function main() {
       return
     } catch (error) {
       process.stderr.write(`Pylon presence failed: ${error instanceof Error ? error.message : String(error)}\n`)
+      process.exitCode = 1
+      return
+    }
+  }
+
+  if (args[0] === "wallet") {
+    try {
+      const command = args[1]
+      const options = parseKeyValueOptions(args.slice(2))
+      const summary = createBootstrapSummary(parseBootstrapArgs(["--json"]), Bun.env)
+      const state = await ensurePylonLocalState(summary)
+      if (command === "status") {
+        const status = await classifyMdkWallet()
+        process.stdout.write(`${JSON.stringify(status, null, 2)}\n`)
+        return
+      }
+      if (command === "receive") {
+        const amount = Number(options.amount)
+        if (!Number.isFinite(amount) || amount <= 0) throw new Error("wallet receive requires --amount")
+        const result = await receiveWithMdk(amount)
+        process.stdout.write(`${JSON.stringify(result, null, 2)}\n`)
+        return
+      }
+      if (command === "send") {
+        const destinationRef = options["destination-ref"]
+        if (!destinationRef) throw new Error("wallet send requires --destination-ref")
+        const amount = options.amount === undefined ? undefined : Number(options.amount)
+        const result = await sendWithMdk(destinationRef, amount)
+        process.stdout.write(`${JSON.stringify(result, null, 2)}\n`)
+        return
+      }
+      if (command === "admit-payout-target") {
+        const kind = options.kind as any
+        const ref = options.ref
+        if (!kind || !ref) throw new Error("wallet admit-payout-target requires --kind and --ref")
+        const result = admitPayoutTarget({ kind, ref })
+        process.stdout.write(`${JSON.stringify({ ...result, ledger: state.paths.ledger }, null, 2)}\n`)
+        return
+      }
+      throw new Error(`unknown wallet command: ${command ?? ""}`)
+    } catch (error) {
+      process.stderr.write(`Pylon wallet failed: ${error instanceof Error ? error.message : String(error)}\n`)
       process.exitCode = 1
       return
     }

@@ -55,6 +55,15 @@ pylon presence link-complete --base-url https://openagents.com
 pylon presence link-refresh --base-url https://openagents.com
 ```
 
+Wallet readiness commands wrap MDK without exposing wallet secrets:
+
+```sh
+pylon wallet status
+pylon wallet receive --amount 1000
+pylon wallet send --destination-ref payout.bolt12.<hash> --amount 21
+pylon wallet admit-payout-target --kind bolt12_offer --ref payout.bolt12.<hash>
+```
+
 The runtime includes:
 
 - Apple Foundation Models bridge support, readiness receipts, streaming tool
