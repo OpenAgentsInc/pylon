@@ -33,3 +33,10 @@ Fields that must not drive public `assignment-ready` by themselves:
 emits the inventory projection directly. The OpenTUI dashboard uses the same
 discovery path and displays unavailable inventory separately from fresh
 inventory.
+
+Next target: split the generic local-model row into an optional Psionic Qwen3.5
+backend projection. The first planned admitted model refs are
+`model.psionic.qwen35.0_8b.q8_0` and `model.psionic.qwen35.2b.q8_0`, with raw
+GGUF paths and cache paths kept out of public inventory. The full audit and
+roadmap live in
+`docs/2026-06-09-pylon-qwen35-local-inference-roadmap.md`.

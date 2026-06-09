@@ -13,12 +13,17 @@ Pylon:
 - `src/gepa-capability.ts`
 - `src/launch-gates.ts`
 - `packages/runtime/tests/benchmark-candidate-execution.test.ts`
+- `docs/2026-06-09-pylon-qwen35-local-inference-roadmap.md`
 
 Psionic:
 
 - `README.md`
 - `AGENTS.md`
 - `V0.2_PYLON_RELEASE_AUDIT.md`
+- `docs/NON_GPT_OSS_QWEN35_PILOT.md`
+- `docs/HERMES_QWEN35_COMPATIBILITY.md`
+- `docs/HERMES_BACKEND_BENCHMARK.md`
+- `docs/QWEN35_RESPONSES_TOOL_LOOP_PILOT.md`
 - `docs/PROBE_GEPA_CANDIDATE_MANIFESTS.md`
 - `docs/PROBE_GEPA_ROLLOUT_COORDINATOR.md`
 - `docs/MESH_LANE_SERVICE_MODE.md`
@@ -64,6 +69,12 @@ not yet own:
 
 Without that boundary, Pylon should not advertise that it can train Qwen, run
 adapter jobs, sell local inference capacity, or execute model-weight updates.
+
+The separate Qwen inference roadmap is
+`docs/2026-06-09-pylon-qwen35-local-inference-roadmap.md`. It narrows the first
+inference pass to `qwen3.5:0.8b` and `qwen3.5:2b` through an attach-only
+Psionic OpenAI-compatible backend. That roadmap is intentionally inference-only
+and does not reopen the postponed Qwen training claim.
 
 ## Ownership Split
 
@@ -300,6 +311,7 @@ be widened into a Psionic-backed ML gate family:
 | GEPA candidate rollout on Pylon | Allowed only for no-spend retained/canary work | Psionic candidate manifest, Pylon assignment, Pylon closeout, Psionic import receipt |
 | Psionic service connected | Blocked | connector status, health response, capability envelope |
 | Psionic sidecar installed | Blocked | signed release manifest, checksum, version/capability check |
+| Optional Qwen3.5 local inference backend | Blocked until roadmap gates pass | Psionic `/health`, `/v1/models`, 0.8B/2B model refs, chat/tool-call smoke receipts |
 | Local inference sellable | Blocked | model artifact manifest, backend readiness, pricing/lease/payment gate |
 | Qwen training on devices | Blocked/postponed | Psionic training assignment, sidecar release identity, model artifact gate, sandbox gate, worker receipt, closeout import |
 | Adapter/SFT worker | Blocked | training assignment schema, artifact lineage, eval gate, receipt import |
@@ -315,7 +327,10 @@ be widened into a Psionic-backed ML gate family:
 7. Add sidecar install/cache layout for macOS and Linux only.
 8. Add model artifact manifest verifier and cache policy.
 9. Add launch gate blockers for every unsupported ML/training claim.
-10. Only after those gates pass, re-open Qwen/training assignment support.
+10. Add the attach-only Qwen3.5 0.8B/2B inference backend described in
+    `docs/2026-06-09-pylon-qwen35-local-inference-roadmap.md`.
+11. Only after separate training gates pass, re-open Qwen/training assignment
+    support.
 
 ## Copy Rules
 
@@ -323,6 +338,8 @@ Allowed now:
 
 - "Pylon v0.3 can run GEPA-first retained benchmark candidate work."
 - "Pylon consumes Psionic GEPA candidate manifests."
+- "Pylon has a roadmap for optional Psionic Qwen3.5 0.8B and 2B local
+  inference once attach, model, and tool-call gates pass."
 - "Qwen and model-training work are postponed until the Psionic connector and
   sidecar gates pass."
 
@@ -333,6 +350,8 @@ Blocked now:
 - "Pylon downloads models automatically."
 - "MDK handles ML runtime capacity."
 - "The npm package includes the Psionic ML stack."
+- "Qwen local inference is live on Pylons before the Psionic Qwen roadmap
+  gates pass."
 
 ## Conclusion
 

@@ -94,6 +94,10 @@ The runtime includes:
   fixtures.
 - GEPA/Terminal-Bench candidate execution, closeout bundles, token telemetry,
   runner identity, and Omega grant/account contracts.
+- Psionic Qwen3.5 local inference is planned as an optional backend for the
+  first pass with 0.8B and 2B rows. See
+  `docs/2026-06-09-pylon-qwen35-local-inference-roadmap.md`; this is not a
+  training, bundled-model, auto-download, or paid-capacity claim.
 
 ## GEPA Capability Envelope
 
@@ -118,6 +122,10 @@ supported platform, CPU/memory/disk counts, network counts, accelerator class,
 backend health refs, model-cache state, and blocker refs. The projection does
 not expose interface names, cache paths, env dumps, provider auth, private
 topology, or raw local model paths.
+
+The next local-model inventory target is the optional Psionic Qwen3.5 backend:
+`qwen3.5:0.8b` for lowest-footprint smoke/fallback and `qwen3.5:2b` for the
+first coding-agent tool-loop quality row.
 
 ## Operator Snapshot
 
