@@ -85,73 +85,67 @@ function updateTelemetryState(state: string, model: string, vram: string) {
 // Hardware Resource & Telemetry Discovery Service
 const startHardwareTelemetryLoop = Effect.gen(function* () {
   yield* log("[Telemetry] Platform discovery initialized.")
-  yield* Effect.repeat(
-    Effect.gen(function* () {
-      yield* Effect.sync(() => {
-        updateTelemetryState("ACTIVE_IN_WORK", "Gemma-4-9B-SFT", "8.2 GB / 12.0 GB")
-      })
-      yield* Effect.sleep("10 seconds")
+  while (true) {
+    yield* Effect.sync(() => {
+      updateTelemetryState("ACTIVE_IN_WORK", "Gemma-4-9B-SFT", "8.2 GB / 12.0 GB")
     })
-  )
+    yield* Effect.sleep("10 seconds")
+  }
 })
 
 // Money Dev Kit (MDK) Wallet Sidecar Service
 const startMdkWalletService = Effect.gen(function* () {
   yield* log("[Wallet] Connecting to local MDK agent-wallet daemon...")
-  yield* Effect.repeat(
-    Effect.gen(function* () {
-      const balance = yield* Effect.tryPromise({
-        try: async () => {
-          const proc = Bun.spawn(["npx", "--yes", "@moneydevkit/agent-wallet", "balance"], {
-            stdout: "pipe",
-            stderr: "pipe",
-          })
-          
-          // Implement a strict 3-second timeout to prevent npx download hangs
-          const textPromise = new Response(proc.stdout).text()
-          const timeoutPromise = new Promise<string>((_, reject) =>
-            setTimeout(() => {
-              proc.kill()
-              reject(new Error("Timeout"))
-            }, 3000)
-          )
-          
-          const stdout = await Promise.race([textPromise, timeoutPromise])
-          const data = JSON.parse(stdout)
-          if (data && typeof data.balance === "number") {
-            return data.balance
-          }
-          if (data && typeof data.confirmed === "number") {
-            return data.confirmed
-          }
-          return null
-        },
-        catch: () => null,
-      })
-
-      yield* Effect.sync(() => {
-        if (balance !== null) {
-          updateMdkBalance(balance)
-          updateMdkStatus("ONLINE (OK)", "#22C55E")
-        } else {
-          // Fallback mockup balance if MDK is offline/uninitialized
-          updateMdkBalance(142520, "Sats (Offline/Fallback)")
-          updateMdkStatus("OFFLINE", "#EF4444")
+  while (true) {
+    const balance = yield* Effect.tryPromise({
+      try: async () => {
+        const proc = Bun.spawn(["npx", "--yes", "@moneydevkit/agent-wallet", "balance"], {
+          stdout: "pipe",
+          stderr: "pipe",
+        })
+        
+        // Implement a strict 3-second timeout to prevent npx download hangs
+        const textPromise = new Response(proc.stdout).text()
+        const timeoutPromise = new Promise<string>((_, reject) =>
+          setTimeout(() => {
+            proc.kill()
+            reject(new Error("Timeout"))
+          }, 3000)
+        )
+        
+        const stdout = await Promise.race([textPromise, timeoutPromise])
+        const data = JSON.parse(stdout)
+        if (data && typeof data.balance === "number") {
+          return data.balance
         }
-      })
-      yield* Effect.sleep("10 seconds")
+        if (data && typeof data.confirmed === "number") {
+          return data.confirmed
+        }
+        return null
+      },
+      catch: () => null,
     })
-  )
+
+    yield* Effect.sync(() => {
+      if (balance !== null) {
+        updateMdkBalance(balance)
+        updateMdkStatus("ONLINE (OK)", "#22C55E")
+      } else {
+        // Explicitly show 0 Sats and OFFLINE status (No fallback mockup balance)
+        updateMdkBalance(0)
+        updateMdkStatus("OFFLINE", "#EF4444")
+      }
+    })
+    yield* Effect.sleep("10 seconds")
+  }
 })
 
 // Nostr Continuous Presence Heartbeat Loop
 const startPresenceHeartbeatLoop = Effect.gen(function* () {
   yield* log("[Heartbeat] Presence service initialized (online, model_ready=true)")
-  yield* Effect.repeat(
-    Effect.gen(function* () {
-      yield* Effect.sleep("30 seconds")
-    })
-  )
+  while (true) {
+    yield* Effect.sleep("30 seconds")
+  }
 })
 
 // OpenCode Programmatic Integration Helper
