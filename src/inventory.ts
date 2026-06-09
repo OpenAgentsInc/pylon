@@ -62,6 +62,9 @@ export type HostInventoryFixture = {
   opencodeInstalled?: boolean
   geminiConfigured?: boolean
   appleFmReady?: boolean
+  psionicConfigured?: boolean
+  psionicReady?: boolean
+  psionicModelRefs?: string[]
   localModelRefs?: string[]
   now?: string
 }
@@ -91,8 +94,12 @@ function backendHealth(input: {
   opencodeInstalled: boolean
   geminiConfigured: boolean
   appleFmReady: boolean
+  psionicConfigured: boolean
+  psionicReady: boolean
+  psionicModelRefs: string[]
 }) {
   const appleSupported = input.platform === "darwin" && input.arch === "arm64"
+  const psionicModelRef = input.psionicModelRefs[0] ?? null
   return [
     {
       backendRef: "backend.opencode.cli",
@@ -123,6 +130,16 @@ function backendHealth(input: {
       blockerRefs: input.geminiConfigured ? [] : ["blocker.backend.gemini_auth_missing"],
     },
     {
+      backendRef: "backend.psionic.qwen35",
+      state: input.psionicReady ? "ready" : input.psionicConfigured ? "configured" : "missing",
+      modelRef: psionicModelRef,
+      blockerRefs: input.psionicReady
+        ? []
+        : input.psionicConfigured
+          ? ["blocker.psionic_qwen35.qwen35_model_missing"]
+          : ["blocker.psionic_qwen35.connector_unconfigured"],
+    },
+    {
       backendRef: "backend.local_model",
       state: "unknown",
       modelRef: null,
@@ -139,6 +156,9 @@ export function projectHostInventoryFixture(input: HostInventoryFixture): PylonH
     opencodeInstalled: input.opencodeInstalled ?? false,
     geminiConfigured: input.geminiConfigured ?? false,
     appleFmReady: input.appleFmReady ?? false,
+    psionicConfigured: input.psionicConfigured ?? false,
+    psionicReady: input.psionicReady ?? false,
+    psionicModelRefs: sanitizeModelRefs(input.psionicModelRefs ?? []),
   })
   const blockerRefs = new Set<string>()
   if (!isSupported) blockerRefs.add("blocker.inventory.unsupported_platform")
@@ -210,7 +230,16 @@ export async function discoverHostInventory(input: { now?: Date; env?: Record<st
     opencodeInstalled: Boolean(Bun.which("opencode")),
     geminiConfigured: Boolean((input.env ?? Bun.env).GEMINI_API_KEY || (input.env ?? Bun.env).GOOGLE_GENERATIVE_AI_API_KEY),
     appleFmReady: platform() === "darwin" && arch() === "arm64",
+    psionicConfigured: Boolean((input.env ?? Bun.env).PYLON_PSIONIC_BASE_URL || (input.env ?? Bun.env).PROBE_PSIONIC_BASE_URL),
+    psionicReady: false,
+    psionicModelRefs: [],
     localModelRefs: [],
     now: (input.now ?? new Date()).toISOString(),
   })
+}
+
+function sanitizeModelRefs(values: string[]) {
+  return values
+    .map((value) => value.trim())
+    .filter((value) => /^model\.[a-z0-9._-]+$/.test(value))
 }

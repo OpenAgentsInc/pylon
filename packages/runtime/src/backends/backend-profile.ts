@@ -1,6 +1,6 @@
 import { Schema as S } from "effect";
 
-export const ProbeBackendKind = S.Literals(["apple_fm_bridge", "gemini_api"]);
+export const ProbeBackendKind = S.Literals(["apple_fm_bridge", "gemini_api", "psionic_qwen35"]);
 export type ProbeBackendKind = typeof ProbeBackendKind.Type;
 
 export const ProbeBackendAttachMode = S.Literals(["attach_existing", "direct_api"]);
@@ -33,6 +33,8 @@ export const ResolvedProbeBackendProfile = S.Struct({
     "OPENAGENTS_APPLE_FM_BASE_URL",
     "PROBE_GEMINI_BASE_URL",
     "PROBE_OMEGA_BASE_URL",
+    "PYLON_PSIONIC_BASE_URL",
+    "PROBE_PSIONIC_BASE_URL",
     "default",
   ]),
 });

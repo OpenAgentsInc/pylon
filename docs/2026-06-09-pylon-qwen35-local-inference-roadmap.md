@@ -3,7 +3,10 @@
 Date: 2026-06-09
 
 Status: audit and first-pass roadmap for adding Psionic-backed Qwen3.5 local
-inference as an optional Pylon coding-agent backend.
+inference as an optional Pylon coding-agent backend. The attach-only backend
+profile and doctor surface are now implemented for issue #13; chat/tool-call
+execution, model-row admission gates, installer flow, and assignment gating
+remain tracked separately.
 
 ## Source Material Read
 
@@ -153,8 +156,8 @@ The Pylon first pass should assume attach mode:
   `/psionic/management/status`.
 
 Pylon should not start Psionic implicitly until the signed sidecar release and
-process-supervision gates exist. For the first pass, `pylon psionic doctor`
-should explain how to start the server and verify the configured base URL.
+process-supervision gates exist. For the first pass,
+`pylon backend psionic doctor` explains how to verify the configured base URL.
 
 ## Optional Download Policy
 
@@ -164,7 +167,7 @@ or Qwen model weights.
 Add an explicit opt-in flow after attach-only support works:
 
 ```sh
-pylon psionic doctor
+pylon backend psionic doctor
 pylon psionic install --channel rc
 pylon psionic models install qwen35-0_8b-q8_0
 pylon psionic models install qwen35-2b-q8_0
@@ -198,10 +201,24 @@ Add a third runtime backend family alongside Apple FM and Gemini:
 - profile id: `psionic-qwen35-local`;
 - capability ref: `probe.backend.psionic_qwen35`;
 - default base URL: `http://127.0.0.1:8080`;
+- env override order: explicit `--base-url`, `PYLON_PSIONIC_BASE_URL`,
+  `PROBE_PSIONIC_BASE_URL`, default;
 - auth mode: `none` for local attach;
 - attach mode: `attach_existing`;
 - stream mode: OpenAI-compatible SSE when streaming is requested;
 - supported endpoints: `/v1/chat/completions`, `/v1/responses`.
+
+Implemented attach-only surface:
+
+```sh
+pylon backend psionic doctor --json
+```
+
+The doctor checks `/health` and `/v1/models`, requires
+`execution_engine = psionic` when that field is present, admits only the
+0.8B/2B Qwen3.5 refs, and returns redacted availability receipts with blocker
+refs including `connector_unconfigured`, `health_unreachable`,
+`execution_engine_not_psionic`, and `qwen35_model_missing`.
 
 The backend should reuse Pylon's provider-neutral LLM core:
 

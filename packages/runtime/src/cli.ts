@@ -30,6 +30,7 @@ import { makeAppleFmToolStreamProgramRunEvidence } from "./backends/apple-fm/pro
 import { makeAppleFmToolCallbackSession } from "./backends/apple-fm/tools";
 import { GeminiClientError, makeGeminiClient, type GeminiClient, type GeminiCompleteResult } from "./backends/gemini/client";
 import { GEMINI_API_PROFILE_ID, GEMINI_DEFAULT_MODEL_ID } from "./backends/gemini/contract";
+import { makePsionicQwenClient, type PsionicQwenReadiness } from "./backends/psionic-qwen/client";
 import {
   loadBlueprintSignatureRegistry,
   lookupBlueprintSignatures,
@@ -115,6 +116,10 @@ function handleProbeCli(
 
     if (namespace === "backend" && command === "gemini" && rest[0] === "complete") {
       return yield* geminiComplete(parseOptions(rest.slice(1)), deps);
+    }
+
+    if (namespace === "backend" && command === "psionic" && rest[0] === "doctor") {
+      return yield* psionicDoctor(parseOptions(rest.slice(1)), deps);
     }
 
     if (namespace === "chat") {
@@ -225,6 +230,28 @@ function geminiChatOnce(
         includeHeader: true,
         result,
       }),
+      stderr: "",
+    };
+  });
+}
+
+function psionicDoctor(
+  options: Record<string, string | true>,
+  deps: ProbeCliDeps,
+): Effect.Effect<ProbeCliResult, ProbeCliError> {
+  return Effect.gen(function* () {
+    const client = yield* makePsionicQwenClient({
+      profileId: stringOption(options, "profile"),
+      explicitBaseUrl: stringOption(options, "base-url"),
+      env: deps.env,
+      fetch: deps.fetch,
+      now: deps.now,
+    }).pipe(Effect.mapError((error) => new ProbeCliError({ message: error.reason })));
+    const readiness = yield* client.doctor();
+
+    return {
+      exitCode: readiness.ready ? 0 : 1,
+      stdout: options.json === true ? `${JSON.stringify(readiness, null, 2)}\n` : formatPsionicDoctor(readiness),
       stderr: "",
     };
   });
@@ -585,10 +612,36 @@ function usage(): string {
     "  probe chat [--profile gemini-api] [--model gemini-3.5-flash] [--prompt TEXT] [--color always|never] [--no-color] [--tui]",
     "  probe backend gemini smoke [--profile gemini-api] [--model gemini-3.5-flash] [--prompt TEXT]",
     "  probe backend gemini complete [--profile gemini-api] [--model gemini-3.5-flash] [--prompt TEXT]",
+    "  probe backend psionic doctor [--profile psionic-qwen35-local] [--base-url URL] [--json]",
     "  probe apple-fm status [--base-url URL] [--profile apple-fm-local]",
     "  probe apple-fm smoke [--base-url URL] [--profile apple-fm-local] [--prompt TEXT]",
     "  probe apple-fm tool-stream-demo [--base-url URL] [--path FILE] [--prompt TEXT]",
   ].join("\n") + "\n";
+}
+
+function formatPsionicDoctor(readiness: PsionicQwenReadiness): string {
+  const lines = [
+    "Psionic Qwen backend doctor",
+    `profile: ${readiness.profile.id}`,
+    `kind: ${readiness.profile.kind}`,
+    `baseUrl: ${readiness.profile.baseUrl}`,
+    `baseUrlSource: ${readiness.profile.baseUrlSource}`,
+    `model: ${readiness.profile.model}`,
+    `status: ${readiness.status}`,
+    `ready: ${readiness.ready}`,
+    `modelIds: ${readiness.modelIds.length === 0 ? "none" : readiness.modelIds.join(", ")}`,
+    `modelRefs: ${readiness.modelRefs.length === 0 ? "none" : readiness.modelRefs.join(", ")}`,
+    `supportedEndpointRefs: ${readiness.supportedEndpointRefs.length === 0 ? "none" : readiness.supportedEndpointRefs.join(", ")}`,
+    `blockerRefs: ${readiness.blockerRefs.length === 0 ? "none" : readiness.blockerRefs.join(", ")}`,
+  ];
+
+  if (readiness.message !== undefined) {
+    lines.push(`message: ${readiness.message}`);
+  }
+
+  lines.push(`receipt: ${JSON.stringify(readiness.receipt)}`);
+
+  return `${lines.join("\n")}\n`;
 }
 
 function formatAppleFmStatus(readiness: AppleFmReadiness): string {

@@ -26,6 +26,7 @@ binary:
 ```sh
 pylon runtime backend gemini smoke
 pylon backend gemini complete --prompt "Summarize the current task."
+pylon backend psionic doctor --json
 pylon apple-fm status
 pylon apple-fm tool-stream-demo
 ```
@@ -94,8 +95,9 @@ The runtime includes:
   fixtures.
 - GEPA/Terminal-Bench candidate execution, closeout bundles, token telemetry,
   runner identity, and Omega grant/account contracts.
-- Psionic Qwen3.5 local inference is planned as an optional backend for the
-  first pass with 0.8B and 2B rows. See
+- Psionic Qwen3.5 attach-only backend discovery and doctor support with
+  `PYLON_PSIONIC_BASE_URL` / `PROBE_PSIONIC_BASE_URL`, 0.8B and 2B model-row
+  refs, and redacted availability receipts. See
   `docs/2026-06-09-pylon-qwen35-local-inference-roadmap.md`; this is not a
   training, bundled-model, startup auto-download, or paid-capacity claim.
 
@@ -123,11 +125,11 @@ backend health refs, model-cache state, and blocker refs. The projection does
 not expose interface names, cache paths, env dumps, provider auth, private
 topology, or raw local model paths.
 
-The next local-model inventory target is the optional Psionic Qwen3.5 backend:
-`qwen3.5:0.8b` for lowest-footprint smoke/fallback and `qwen3.5:2b` for the
-first coding-agent tool-loop quality row. Machines that cannot or do not want
-to run local ML should keep working with precise Psionic blocker refs and no
-binary/model download.
+Host inventory now includes an optional Psionic Qwen3.5 row. `qwen3.5:0.8b`
+is the lowest-footprint smoke/fallback row and `qwen3.5:2b` is the first
+coding-agent tool-loop quality row. Machines that cannot or do not want to run
+local ML keep working with precise Psionic blocker refs and no binary/model
+download.
 
 ## Operator Snapshot
 
