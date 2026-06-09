@@ -51,6 +51,24 @@ export const launchClaimGates: LaunchClaimGate[] = [
     blockerRefs: ["blocker.copy.qwen_training_postponed"],
   },
   {
+    claimRef: "claim.pylon.optional_local_qwen_inference",
+    publicPhrase: "Pylon can use optional local Qwen3.5 inference when the Psionic backend, model, and tool-call gates pass",
+    state: "allowed",
+    requiredEvidenceRefs: [
+      "evidence.psionic.backend.doctor",
+      "evidence.psionic.qwen35.model_admission",
+      "evidence.psionic.qwen35.tool_call_smoke",
+    ],
+    blockerRefs: [],
+  },
+  {
+    claimRef: "claim.pylon.paid_qwen_inference",
+    publicPhrase: "Paid Qwen inference is live on Pylons",
+    state: "blocked",
+    requiredEvidenceRefs: ["evidence.paid.assignment.settlement", "evidence.psionic.paid_inference_gate"],
+    blockerRefs: ["blocker.copy.paid_qwen_inference_not_live"],
+  },
+  {
     claimRef: "claim.pylon.marketplace_capacity",
     publicPhrase: "Pylons sell compute capacity live",
     state: "blocked",
@@ -64,6 +82,8 @@ const unsafePhrasePatterns = [
   /assignment-ready across the network/i,
   /paid pylon work settles bitcoin/i,
   /qwen .*training on people/i,
+  /paid qwen inference .*live/i,
+  /qwen inference .*paid/i,
   /sell compute capacity live/i,
   /full live gepa network/i,
   /marketplace .* live/i,

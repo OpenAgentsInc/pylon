@@ -13,6 +13,7 @@ import {
 } from "../src/assignment"
 import { sendHeartbeat, sha256Base64Url } from "../src/presence"
 import { assertPublicProjectionSafe, ensurePylonLocalState, writePresenceState } from "../src/state"
+import { PSIONIC_QWEN_MODEL_REFS, type PsionicQwenModelAdmission } from "../packages/runtime/src/index"
 
 const servers: ReturnType<typeof Bun.serve>[] = []
 
@@ -230,6 +231,92 @@ describe("Pylon assignment lease flow", () => {
     })
   })
 
+  test("distinguishes Psionic 0.8B fallback from 2B-required assignment admission", async () => {
+    await withTempHome(async (home) => {
+      const summary = await readySummary(home)
+      const state = await ensurePylonLocalState(summary)
+      await writePresenceState(state.paths, {
+        registered: true,
+        linked: false,
+        stale: false,
+        pylonRef: state.identity.pylonRef,
+        registrationRef: "registration.test",
+        linkRef: null,
+        lastHeartbeatAt: "2026-06-09T00:00:00.000Z",
+        heartbeatSequence: 1,
+        blockerRefs: [],
+        updatedAt: "2026-06-09T00:00:00.000Z",
+      })
+      const only08b = psionicAdmission([PSIONIC_QWEN_MODEL_REFS.qwen35_0_8b])
+      const fallback = await computeAssignmentAdmission(
+        state,
+        lease({
+          capabilityRefs: ["cap.gepa.retained.v1"],
+          backendRef: undefined,
+          psionicQwenRequirements: {
+            workClass: "local_inference",
+            mode: "coding_agent",
+          },
+        }),
+        {
+          now: () => new Date("2026-06-09T00:00:30.000Z"),
+          psionicQwenAdmission: only08b,
+        },
+      )
+      const requires2b = await computeAssignmentAdmission(
+        state,
+        lease({
+          capabilityRefs: ["cap.gepa.retained.v1"],
+          psionicQwenRequirements: {
+            workClass: "local_inference",
+            mode: "requires_2b",
+            requiredModelRef: PSIONIC_QWEN_MODEL_REFS.qwen35_2b,
+          },
+        }),
+        {
+          now: () => new Date("2026-06-09T00:00:30.000Z"),
+          psionicQwenAdmission: only08b,
+        },
+      )
+
+      expect(fallback.admissible).toBe(true)
+      expect(requires2b.admissible).toBe(false)
+      expect(requires2b.blockerRefs).toContain("blocker.psionic_qwen35.model_2b_missing")
+    })
+  })
+
+  test("closeout receipts include Psionic backend and model refs without raw artifacts", async () => {
+    await withTempHome(async (home) => {
+      const fake = fakeAssignmentServer({
+        leases: [
+          lease({
+            psionicQwenRequirements: {
+              workClass: "local_inference",
+              mode: "requires_2b",
+              requiredModelRef: PSIONIC_QWEN_MODEL_REFS.qwen35_2b,
+              receiptRefs: ["receipt.psionic.backend.redacted"],
+            },
+          }),
+        ],
+      })
+      const summary = await readySummary(home)
+      await sendHeartbeat(summary, { baseUrl: fake.baseUrl, now: () => new Date("2026-06-09T00:00:00.000Z") })
+      const result = await runNoSpendAssignment(summary, {
+        baseUrl: fake.baseUrl,
+        now: () => new Date("2026-06-09T00:00:30.000Z"),
+        psionicQwenAdmission: psionicAdmission([PSIONIC_QWEN_MODEL_REFS.qwen35_2b]),
+      })
+
+      expect(result.ok).toBe(true)
+      if (!result.ok) throw new Error("expected Psionic assignment to run")
+      expect(result.closeout.receiptRefs).toContain("backend.psionic.qwen35")
+      expect(result.closeout.receiptRefs).toContain("model.psionic.qwen35.2b.q8_0")
+      expect(result.closeout.receiptRefs).toContain("receipt.psionic.backend.redacted")
+      expect(JSON.stringify(result.closeout)).not.toContain("/Users/")
+      expect(JSON.stringify(result.closeout)).not.toContain(".gguf")
+    })
+  })
+
   test("poll handles server cancellation/rejection and explicit timeout closeout shapes", async () => {
     await withTempHome(async (home) => {
       const fake = fakeAssignmentServer({ leases: [lease({ leaseRef: "lease.public.timeout" })] })
@@ -297,3 +384,12 @@ describe("Pylon assignment lease flow", () => {
     })
   })
 })
+
+function psionicAdmission(modelRefs: PsionicQwenModelAdmission["admittedModelRefs"]): PsionicQwenModelAdmission {
+  return {
+    rows: [],
+    admittedModelRefs: modelRefs,
+    observedModelRefs: modelRefs,
+    blockerRefs: [],
+  }
+}

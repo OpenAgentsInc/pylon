@@ -17,6 +17,12 @@ import {
   type PylonGepaAssignmentRequirements,
   type PylonGepaCapabilityEnvelope,
 } from "./gepa-capability"
+import {
+  PSIONIC_QWEN_MODEL_REFS,
+  selectPsionicQwenModel,
+  type PsionicQwenModelAdmission,
+  type PsionicQwenTaskMode,
+} from "../packages/runtime/src/index"
 
 export type AssignmentPaymentMode = "no-spend" | "paid"
 export type AssignmentStatus = "offered" | "accepted" | "running" | "closed" | "rejected" | "cancelled" | "timed-out" | "stale"
@@ -30,8 +36,16 @@ export type PylonAssignmentLease = {
   capabilityRefs: string[]
   backendRef?: string
   gepaRequirements?: PylonGepaAssignmentRequirements
+  psionicQwenRequirements?: PylonPsionicQwenAssignmentRequirements
   expiresAt: string
   createdAt?: string
+}
+
+export type PylonPsionicQwenAssignmentRequirements = {
+  workClass: "local_inference"
+  mode: PsionicQwenTaskMode
+  requiredModelRef?: string
+  receiptRefs?: string[]
 }
 
 export type AssignmentPollResponse = {
@@ -84,6 +98,7 @@ export type AssignmentClientOptions = {
   staleAfterMs?: number
   walletRunner?: WalletCommandRunner
   gepaEnvelope?: PylonGepaCapabilityEnvelope
+  psionicQwenAdmission?: PsionicQwenModelAdmission
 }
 
 type AssignmentStore = {
@@ -138,7 +153,7 @@ function isExpired(lease: PylonAssignmentLease, now: Date) {
 export async function computeAssignmentAdmission(
   state: PylonLocalState,
   lease: PylonAssignmentLease,
-  options: Pick<AssignmentClientOptions, "now" | "staleAfterMs" | "walletRunner"> = {},
+  options: Pick<AssignmentClientOptions, "now" | "staleAfterMs" | "walletRunner" | "psionicQwenAdmission"> = {},
 ) {
   const now = options.now?.() ?? new Date()
   const presence = await loadOrCreatePresenceState(state.paths, state.identity)
@@ -161,6 +176,23 @@ export async function computeAssignmentAdmission(
     const envelope = options.gepaEnvelope ?? createDefaultGepaCapabilityEnvelope()
     const gepaAdmission = admitGepaAssignmentToEnvelope(envelope, lease.gepaRequirements)
     for (const blockerRef of gepaAdmission.blockerRefs) blockerRefs.add(blockerRef)
+  }
+  if (lease.psionicQwenRequirements) {
+    const psionicAdmission = options.psionicQwenAdmission ?? psionicAdmissionFromCapabilityRefs(state.runtime.capabilityRefs)
+    const selection = selectPsionicQwenModel(psionicAdmission, lease.psionicQwenRequirements.mode)
+    if (!selection.admitted) {
+      for (const blockerRef of selection.blockerRefs) blockerRefs.add(blockerRef)
+    }
+    if (
+      lease.psionicQwenRequirements.requiredModelRef &&
+      selection.selectedModelRef !== lease.psionicQwenRequirements.requiredModelRef
+    ) {
+      blockerRefs.add(
+        lease.psionicQwenRequirements.requiredModelRef === PSIONIC_QWEN_MODEL_REFS.qwen35_2b
+          ? "blocker.psionic_qwen35.model_2b_missing"
+          : "blocker.psionic_qwen35.required_model_missing",
+      )
+    }
   }
   if (isExpired(lease, now)) blockerRefs.add("blocker.assignment.lease_expired")
   if (lease.paymentMode === "paid") {
@@ -357,7 +389,7 @@ export async function runNoSpendAssignment(summary: BootstrapSummary, options: A
       payoutClaimAllowed: false,
       artifactRefs: [],
       proofRefs: [failureProofRef],
-      receiptRefs: [acceptance.statusRef],
+      receiptRefs: [acceptance.statusRef, ...psionicCloseoutReceiptRefs(lease, options)],
       redacted: true,
       completedAt: observedAt,
     }
@@ -374,11 +406,41 @@ export async function runNoSpendAssignment(summary: BootstrapSummary, options: A
     payoutClaimAllowed: false,
     artifactRefs: [artifactRef],
     proofRefs: [proofRef],
-    receiptRefs: [acceptance.statusRef, progressReceipt.progressRef],
+    receiptRefs: [acceptance.statusRef, progressReceipt.progressRef, ...psionicCloseoutReceiptRefs(lease, options)],
     redacted: true,
     completedAt: observedAt,
   }
   assertPublicProjectionSafe(closeout)
   const closeoutReceipt = await submitAssignmentCloseout(summary, closeout, options)
   return { ok: true, lease, acceptance, progress, closeout, progressReceipt, closeoutReceipt }
+}
+
+function psionicAdmissionFromCapabilityRefs(capabilityRefs: string[]): PsionicQwenModelAdmission {
+  const admittedModelRefs = capabilityRefs.filter((ref) =>
+    ref === PSIONIC_QWEN_MODEL_REFS.qwen35_0_8b || ref === PSIONIC_QWEN_MODEL_REFS.qwen35_2b
+  ) as PsionicQwenModelAdmission["admittedModelRefs"]
+
+  return {
+    rows: [],
+    admittedModelRefs,
+    observedModelRefs: admittedModelRefs,
+    blockerRefs: admittedModelRefs.length === 0 ? ["blocker.psionic_qwen35.qwen35_model_missing"] : [],
+  }
+}
+
+function psionicCloseoutReceiptRefs(lease: PylonAssignmentLease, options: AssignmentClientOptions): string[] {
+  if (!lease.psionicQwenRequirements) return []
+  const admission = options.psionicQwenAdmission ?? {
+    rows: [],
+    admittedModelRefs: [],
+    observedModelRefs: [],
+    blockerRefs: [],
+  }
+  const selection = selectPsionicQwenModel(admission, lease.psionicQwenRequirements.mode)
+  const refs = new Set<string>([
+    "backend.psionic.qwen35",
+    ...(lease.psionicQwenRequirements.receiptRefs ?? []),
+  ])
+  if (selection.selectedModelRef) refs.add(selection.selectedModelRef)
+  return [...refs]
 }

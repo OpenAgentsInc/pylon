@@ -394,6 +394,18 @@ Before any paid inference claim:
 
 Paid inference is not part of the first pass.
 
+Implemented assignment/launch gate surface:
+
+- assignment leases may carry `psionicQwenRequirements` for
+  `workClass = local_inference`;
+- admission selects from admitted Psionic Qwen model refs and distinguishes
+  0.8B fallback from 2B-required work;
+- 2B-required work emits `blocker.psionic_qwen35.model_2b_missing` when only
+  0.8B is admitted;
+- no-spend closeouts attach only public Psionic backend/model/receipt refs;
+- launch copy may use bounded optional-local-inference language only;
+- Qwen training and paid Qwen inference remain blocked launch claims.
+
 ## Blocker Refs
 
 Add specific blockers:

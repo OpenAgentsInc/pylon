@@ -22,6 +22,12 @@ The gate runs:
 The public package claim currently allowed is:
 
 - `@openagentsinc/pylon@0.3.0-rc1` is the v0.3 release candidate.
+- `Pylon can use optional local Qwen3.5 inference when the Psionic backend,
+  model, and tool-call gates pass`.
+
+The optional local inference claim is bounded. It does not claim default
+bundled models, startup downloads, paid inference, training, or universal
+machine support.
 
 Blocked copy until separate evidence rows exist:
 
@@ -29,6 +35,7 @@ Blocked copy until separate evidence rows exist:
 - `Pylon v0.3 is assignment-ready across the network`;
 - `Paid Pylon work settles Bitcoin`;
 - `Qwen is training on people's devices`;
+- `Paid Qwen inference is live on Pylons`;
 - `Pylons sell compute capacity live`;
 - `full live GEPA network`;
 - live marketplace, referral payout, or data revenue claims.
