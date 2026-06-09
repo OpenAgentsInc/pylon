@@ -1,6 +1,6 @@
 {
   "name": "@openagentsinc/pylon",
-  "version": "0.3.0",
+  "version": "0.3.0-rc1",
   "description": "Modern Pylon contributor node built on Bun, Effect, and OpenTUI",
   "private": false,
   "main": "src/index.ts",
@@ -47,11 +47,13 @@
     "smoke:default-start": "rm -f /tmp/pylon-default-start.log; perl -e 'alarm 3; $ENV{PYLON_DISABLE_OPENCODE_STARTUP}=1; exec @ARGV' bun src/index.ts > /tmp/pylon-default-start.log 2>&1; code=$?; if [ \"$code\" -ne 142 ] && [ \"$code\" -ne 0 ]; then cat /tmp/pylon-default-start.log; exit \"$code\"; fi; if rg -n 'TypeError|Effect\\.(fork|catchAll)|is not a function|\\[ERROR\\]' /tmp/pylon-default-start.log; then exit 1; fi; printf 'default startup reached persistent mode without startup API errors\\n'",
     "smoke:dashboard": "bun src/index.ts --smoke-dashboard",
     "smoke:wallet": "npx --yes @moneydevkit/agent-wallet@latest balance | bun -e 'const input = await new Response(Bun.stdin.stream()).text(); const json = JSON.parse(input); if (typeof json.balance_sats !== \"number\") { console.error(input.trim()); process.exit(1); } console.log(`wallet balance: ${json.balance_sats} sats`);'",
+    "smoke:install:local": "bash scripts/smoke-local-package-install.sh",
     "test": "bun test"
   },
   "dependencies": {
     "@opentui/core": "^0.3.4",
-    "@openagentsinc/pylon-runtime": "workspace:*",
+    "diff": "^9.0.0",
+    "marked": "^18.0.5",
     "effect": "catalog:"
   },
   "devDependencies": {

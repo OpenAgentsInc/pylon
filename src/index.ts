@@ -13,7 +13,13 @@ import {
   SyntaxStyle,
   type CliRenderer
 } from "@opentui/core"
-import { runProbeCli } from "@openagentsinc/pylon-runtime"
+import { runProbeCli } from "../packages/runtime/src/index"
+import {
+  createBootstrapSummary,
+  formatBootstrapText,
+  parseBootstrapArgs,
+  writeBootstrapFiles,
+} from "./bootstrap"
 
 // Global UI references for log aggregation and balance updates
 let globalRenderer: CliRenderer | null = null
@@ -827,6 +833,34 @@ const runtimeCommandNamespaces = new Set([
 
 async function main() {
   const args = Bun.argv.slice(2)
+
+  if (args[0] === "bootstrap") {
+    try {
+      const options = parseBootstrapArgs(args.slice(1))
+      const summary = createBootstrapSummary(options, Bun.env)
+      if (!summary.platform.supported) {
+        process.stderr.write(
+          `Pylon v0.3.0-rc1 supports macOS and Linux only. Current platform: ${summary.platform.current}\n`,
+        )
+        process.exitCode = 1
+        return
+      }
+
+      await writeBootstrapFiles(summary)
+      process.stdout.write(options.json ? `${JSON.stringify(summary, null, 2)}\n` : formatBootstrapText(summary))
+      return
+    } catch (error) {
+      process.stderr.write(`Pylon bootstrap failed: ${error instanceof Error ? error.message : String(error)}\n`)
+      process.exitCode = 1
+      return
+    }
+  }
+
+  if (args[0] === "status" && args.includes("--json")) {
+    const summary = createBootstrapSummary(parseBootstrapArgs(["--json"]), Bun.env)
+    process.stdout.write(`${JSON.stringify(summary, null, 2)}\n`)
+    return
+  }
 
   if (args[0] === "runtime" || runtimeCommandNamespaces.has(args[0] ?? "")) {
     const runtimeArgs = args[0] === "runtime" ? args.slice(1) : args

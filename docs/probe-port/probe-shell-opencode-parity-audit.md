@@ -22,9 +22,9 @@
 | Exit code | Non-zero exit is **not** an error; returned in `{ exitCode, output }` success schema |
 | Permissions | `assertPermission({ action: "bash", resources: [command] })` + `external_directory` permission |
 | Advisory warnings | Scans command tokens for absolute paths outside workdir (advisory only, not enforced) |
-| Shell selection | Config entry or platform default: `/bin/sh` on POSIX, `cmd.exe` on Windows |
+| Shell selection | Config entry or platform default: `/bin/sh` on macOS/Linux |
 | Security | `stdin: "ignore"`, `detached: true` (process group), `forceKillAfter: 3s` |
-| Process group kill | POSIX: `process.kill(-pid)`; Windows: `taskkill /T /F` |
+| Process group kill | macOS/Linux: `process.kill(-pid)` |
 
 **V1 `ShellTool`** (`packages/opencode/src/tool/shell.ts`) — richer, app-facing:
 
@@ -82,7 +82,7 @@ Low-level: uses `cross-spawn` library. Supports piped commands (stream stdout of
 |---|---|---|
 | Bash execution | Full | **None** |
 | Shell selection | Configurable + denied shells | N/A |
-| Process group kill | POSIX + Windows | N/A |
+| Process group kill | macOS/Linux | N/A |
 | Timeout with force-kill | Yes (configurable + 3s grace) | N/A |
 | Output bounds/truncation | Configurable lines/bytes | Only on file reads (100KB) |
 | Streaming output | Yes (V1 ShellTool) | N/A |

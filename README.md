@@ -9,8 +9,9 @@
 
 ## Launch Package
 
-The v0.3 launch package is `@openagentsinc/pylon` and exposes the `pylon`
-binary.
+The v0.3 release-candidate package is `@openagentsinc/pylon@0.3.0-rc1` and
+exposes the `pylon` binary. Do not treat `0.3.0` as stable until the launch
+gates pass.
 
 Initial supported operator platforms are macOS and Linux. No other operator
 platforms are in scope for the first v0.3 launch path.
@@ -18,8 +19,9 @@ platforms are in scope for the first v0.3 launch path.
 ## Runtime Backends
 
 Pylon now carries the former Probe runtime as `@openagentsinc/pylon-runtime`.
-The public `pylon` binary keeps the OpenTUI node dashboard as the default and
-routes backend/runtime commands through the same binary:
+The public `pylon` binary bundles that runtime source, keeps the OpenTUI node
+dashboard as the default, and routes backend/runtime commands through the same
+binary:
 
 ```sh
 pylon runtime backend gemini smoke
@@ -27,6 +29,18 @@ pylon backend gemini complete --prompt "Summarize the current task."
 pylon apple-fm status
 pylon apple-fm tool-stream-demo
 ```
+
+## Bootstrap And Status
+
+```sh
+pylon bootstrap --json
+pylon bootstrap --register-openagents --setup-mdk-wallet --pylon-ref <ref> --display-name <name> --resource-mode background_20 --capability-ref <ref> --json
+pylon status --json
+```
+
+`bootstrap` creates the local v0.3 home/cache/release layout and writes a
+minimal public-safe config summary. Live registration and MDK mutation are
+tracked by later launch gates.
 
 The runtime includes:
 

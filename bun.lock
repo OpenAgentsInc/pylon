@@ -5,9 +5,10 @@
     "": {
       "name": "@openagentsinc/pylon",
       "dependencies": {
-        "@openagentsinc/pylon-runtime": "workspace:*",
         "@opentui/core": "^0.3.4",
+        "diff": "^9.0.0",
         "effect": "catalog:",
+        "marked": "^18.0.5",
       },
       "devDependencies": {
         "bun-types": "^1.0.0",
@@ -15,7 +16,7 @@
     },
     "packages/runtime": {
       "name": "@openagentsinc/pylon-runtime",
-      "version": "0.3.0",
+      "version": "0.3.0-rc1",
       "bin": {
         "pylon-runtime": "./src/cli.ts",
       },
