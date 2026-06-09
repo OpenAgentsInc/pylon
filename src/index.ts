@@ -33,6 +33,28 @@ const startPresenceHeartbeatLoop = Effect.gen(function* () {
   )
 })
 
+// OpenCode Programmatic Integration Service
+const runOpencodeStartupInference = Effect.gen(function* () {
+  yield* Effect.logInfo("[OpenCode] Checking for local OpenCode CLI installation...")
+  const opencodePath = Bun.which("opencode")
+  if (opencodePath) {
+    yield* Effect.logInfo(`[OpenCode] Found OpenCode CLI at ${opencodePath}. Executing hello world inference...`)
+    
+    const result = yield* Effect.tryPromise({
+      try: async () => {
+        const proc = Bun.spawn([opencodePath, "run", "Say 'Hello, World!' in one short sentence."])
+        const stdout = await new Response(proc.stdout).text()
+        return stdout.trim()
+      },
+      catch: (error) => new Error(`Failed to execute OpenCode inference: ${String(error)}`),
+    })
+    
+    yield* Effect.logInfo(`[OpenCode] Inference Response: "${result}"`)
+  } else {
+    yield* Effect.logWarning("[OpenCode] OpenCode CLI is not installed on this system.")
+  }
+})
+
 // Main Pylon v0.3 Application Loop
 const runPylonNode = Effect.gen(function* () {
   yield* Effect.logInfo("Initializing Pylon v0.3 observational earning node...")
@@ -61,6 +83,7 @@ const runPylonNode = Effect.gen(function* () {
   const telemetryFiber = yield* Effect.fork(startHardwareTelemetryLoop)
   const walletFiber = yield* Effect.fork(startMdkWalletService)
   const heartbeatFiber = yield* Effect.fork(startPresenceHeartbeatLoop)
+  const opencodeFiber = yield* Effect.fork(runOpencodeStartupInference)
 
   yield* Effect.logInfo("Pylon v0.3 observational dashboard active.")
 
