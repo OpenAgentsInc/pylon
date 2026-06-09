@@ -195,8 +195,28 @@ const startPresenceHeartbeatLoop = Effect.gen(function* () {
   }
 })
 
+type OpenCodeInferenceOptions = {
+  label: string
+  streamToUi?: boolean
+  statusIntervalMs?: number
+}
+
+function summarizeOpenCodeEvent(event: any) {
+  const type = typeof event?.type === "string" ? event.type : "event"
+  const partType = typeof event?.part?.type === "string" ? event.part.type : undefined
+  const tool = event?.part?.tool ?? event?.tool ?? event?.name
+  const title = event?.part?.title ?? event?.title
+  const path = event?.part?.path ?? event?.path
+  const detail = [partType, tool, title, path].filter(Boolean).join(" ")
+  return detail ? `${type}: ${detail}` : type
+}
+
 // OpenCode Programmatic Integration Helper
-async function executeOpencodeInference(opencodePath: string, prompt: string) {
+async function executeOpencodeInference(
+  opencodePath: string,
+  prompt: string,
+  options: OpenCodeInferenceOptions,
+) {
   const proc = Bun.spawn(
     [
       opencodePath,
@@ -212,26 +232,130 @@ async function executeOpencodeInference(opencodePath: string, prompt: string) {
       stderr: "pipe",
     }
   )
-  const stdout = await new Response(proc.stdout).text()
-  
+
+  const responseLine =
+    options.streamToUi && globalRenderer
+      ? new MarkdownRenderable(globalRenderer, {
+          content: `**OpenCode ${options.label}**: starting...`,
+          syntaxStyle,
+          width: "100%",
+          conceal: true,
+          streaming: true,
+        })
+      : null
+  if (responseLine) {
+    logScrollBox?.add(responseLine)
+  }
+
+  const startTime = Date.now()
+  const statusIntervalMs = options.statusIntervalMs ?? 5000
   let textResult = ""
   let finalCost = 0
   let totalTokens = 0
-  
-  for (const line of stdout.split("\n")) {
-    if (!line.trim()) continue
-    try {
-      const event = JSON.parse(line)
-      if (event.type === "text" && event.part && event.part.text) {
-        textResult += event.part.text
+  let eventCount = 0
+  let byteCount = 0
+  let lastEventSummary = "waiting for first event"
+
+  const renderStreamingLine = () => {
+    if (!responseLine) return
+    const elapsedSeconds = Math.max(1, Math.round((Date.now() - startTime) / 1000))
+    const visibleText = textResult.trim() || `_${lastEventSummary}_`
+    const footer = `\n\n*[${options.label}: ${elapsedSeconds}s | events: ${eventCount} | bytes: ${byteCount} | tokens: ${totalTokens || "-"}]*`
+    responseLine.content = `**OpenCode ${options.label}**: ${visibleText}${footer}`
+  }
+
+  const statusTimer = setInterval(() => {
+    const elapsedSeconds = Math.max(1, Math.round((Date.now() - startTime) / 1000))
+    logToUi(
+      `[OpenCode] ${options.label} still running (${elapsedSeconds}s, events=${eventCount}, bytes=${byteCount}, last=${lastEventSummary}).`,
+    )
+    renderStreamingLine()
+  }, statusIntervalMs)
+
+  const stderrTask = (async () => {
+    const reader = proc.stderr.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ""
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split("\n")
+      buffer = lines.pop() ?? ""
+      for (const line of lines) {
+        if (line.trim()) {
+          logToUi(`[OpenCode] ${options.label} stderr: ${line.trim()}`)
+        }
       }
-      if (event.type === "step_finish" && event.part && event.part.tokens) {
-        finalCost = event.part.cost ?? 0
-        totalTokens = event.part.tokens.total ?? 0
-      }
-    } catch {
-      // Ignore parse errors or other outputs
     }
+    const trailing = buffer.trim()
+    if (trailing) {
+      logToUi(`[OpenCode] ${options.label} stderr: ${trailing}`)
+    }
+  })()
+
+  try {
+    const reader = proc.stdout.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ""
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+
+      byteCount += value.byteLength
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split("\n")
+      buffer = lines.pop() ?? ""
+
+      for (const line of lines) {
+        if (!line.trim()) continue
+        eventCount += 1
+        try {
+          const event = JSON.parse(line)
+          lastEventSummary = summarizeOpenCodeEvent(event)
+          if (event.type !== "text") {
+            logToUi(`[OpenCode] ${options.label} event ${eventCount}: ${lastEventSummary}`)
+          }
+          if (event.type === "text" && event.part && event.part.text) {
+            textResult += event.part.text
+            renderStreamingLine()
+          }
+          if (event.type === "step_finish" && event.part && event.part.tokens) {
+            finalCost = event.part.cost ?? 0
+            totalTokens = event.part.tokens.total ?? 0
+            renderStreamingLine()
+          }
+        } catch {
+          lastEventSummary = `raw output: ${line.slice(0, 120)}`
+          logToUi(`[OpenCode] ${options.label} raw output: ${line.slice(0, 240)}`)
+          renderStreamingLine()
+        }
+      }
+    }
+
+    const trailing = buffer.trim()
+    if (trailing) {
+      eventCount += 1
+      try {
+        const event = JSON.parse(trailing)
+        lastEventSummary = summarizeOpenCodeEvent(event)
+      } catch {
+        lastEventSummary = `raw output: ${trailing.slice(0, 120)}`
+        logToUi(`[OpenCode] ${options.label} raw output: ${trailing.slice(0, 240)}`)
+      }
+    }
+  } finally {
+    clearInterval(statusTimer)
+  }
+
+  const exitCode = await proc.exited
+  await stderrTask
+  if (responseLine) {
+    responseLine.streaming = false
+  }
+  if (exitCode !== 0) {
+    throw new Error(`OpenCode exited with code ${exitCode}`)
   }
   
   return {
@@ -252,7 +376,10 @@ const runOpencodeStartupInference = Effect.gen(function* () {
     const logSummaryResult = yield* Effect.tryPromise({
       try: () => {
         const prompt = `Here are the bootup sequence logs:\n\n${logHistory.join("\n")}\n\nProvide a one line, <10 word, neutral, terminal-sounding summary of these bootup sequence logs.`
-        return executeOpencodeInference(opencodePath, prompt)
+        return executeOpencodeInference(opencodePath, prompt, {
+          label: "boot-summary",
+          streamToUi: true,
+        })
       },
       catch: (error) => new Error(`Failed to execute bootup summary: ${String(error)}`),
     })
@@ -271,7 +398,10 @@ const runOpencodeStartupInference = Effect.gen(function* () {
           "The post should be useful to other agents or operators, not promotional, and should not expose secrets, wallet material, private repo content, or credentials.",
           "When finished, report the topic/post URL and a one-sentence summary of the value added.",
         ].join(" ")
-        return executeOpencodeInference(opencodePath, prompt)
+        return executeOpencodeInference(opencodePath, prompt, {
+          label: "site-post",
+          streamToUi: true,
+        })
       },
       catch: (error) => new Error(`Failed to execute site contribution: ${String(error)}`),
     })
