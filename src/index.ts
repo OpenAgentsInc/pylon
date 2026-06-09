@@ -83,7 +83,7 @@ function updateMdkBalance(balance: number | null, suffix = "Sats") {
 function updateMdkStatus(status: string, color = "#22C55E") {
   if (statusTextRenderable) {
     statusTextRenderable.content = ` Wallet: ${status}`
-    statusTextRenderable.textColor = parseColor(color)
+    statusTextRenderable.fg = parseColor(color)
   }
 }
 
@@ -167,7 +167,7 @@ const startMdkWalletService = Effect.gen(function* () {
     yield* Effect.sync(() => {
       if (balance !== null) {
         updateMdkBalance(balance)
-        updateMdkStatus("ONLINE (OK)", "#22C55E")
+        updateMdkStatus("ONLINE (OK)", "#58A6FF")
         if (!loggedOnline) {
           logToUi("[Wallet] MDK agent-wallet daemon connected successfully. Balance synchronized.")
           loggedOnline = true
@@ -260,18 +260,24 @@ const runOpencodeStartupInference = Effect.gen(function* () {
     yield* log(`[OpenCode] Bootup Summary: "${logSummaryResult.text}"`)
     yield* log(`[OpenCode] Cost: $${logSummaryResult.cost.toFixed(4)} | Tokens: ${logSummaryResult.tokens}`)
 
-    // 2. Read AGENTS.md and summarize capabilities
-    yield* log("[OpenCode] Fetching and analyzing https://openagents.com/AGENTS.md...")
-    const capabilityResult = yield* Effect.tryPromise({
+    // 2. Read AGENTS.md and contribute a useful post somewhere on the site.
+    yield* log("[OpenCode] Reading https://openagents.com/AGENTS.md and creating a useful site post...")
+    const contributionResult = yield* Effect.tryPromise({
       try: () => {
-        const prompt = "Read https://openagents.com/AGENTS.md (readonly) and summarize current capabilities in 1-2 concise paragraphs."
+        const prompt = [
+          "Read https://openagents.com/AGENTS.md and follow its current agent instructions.",
+          "If you have no registered agent identity, register one for this local Pylon/OpenCode context.",
+          "Then find an appropriate public place on openagents.com to add value with a concise post.",
+          "The post should be useful to other agents or operators, not promotional, and should not expose secrets, wallet material, private repo content, or credentials.",
+          "When finished, report the topic/post URL and a one-sentence summary of the value added.",
+        ].join(" ")
         return executeOpencodeInference(opencodePath, prompt)
       },
-      catch: (error) => new Error(`Failed to execute capability summary: ${String(error)}`),
+      catch: (error) => new Error(`Failed to execute site contribution: ${String(error)}`),
     })
 
-    yield* log(`[OpenCode] Capabilities Summary:\n${capabilityResult.text}`)
-    yield* log(`[OpenCode] Cost: $${capabilityResult.cost.toFixed(4)} | Tokens: ${capabilityResult.tokens}`)
+    yield* log(`[OpenCode] Site Contribution:\n${contributionResult.text}`)
+    yield* log(`[OpenCode] Cost: $${contributionResult.cost.toFixed(4)} | Tokens: ${contributionResult.tokens}`)
   } else {
     yield* log("[OpenCode] OpenCode CLI is not installed on this system.")
   }
@@ -279,6 +285,7 @@ const runOpencodeStartupInference = Effect.gen(function* () {
 
 // Main Pylon v0.3 Application Loop
 const runPylonNode = Effect.gen(function* () {
+  const smokeDashboard = Bun.argv.includes("--smoke-dashboard") || Bun.env.PYLON_SMOKE_DASHBOARD === "1"
   yield* log("Initializing Pylon v0.3 observational earning node...")
 
   // Bootstrap OpenTUI Core
@@ -488,12 +495,14 @@ const runPylonNode = Effect.gen(function* () {
     runBackgroundEffect("Telemetry", startHardwareTelemetryLoop)
     runBackgroundEffect("Wallet", startMdkWalletService)
     runBackgroundEffect("Heartbeat", startPresenceHeartbeatLoop)
-    runBackgroundEffect("OpenCode", runOpencodeStartupInference)
+    if (!smokeDashboard && Bun.env.PYLON_DISABLE_OPENCODE_STARTUP !== "1") {
+      runBackgroundEffect("OpenCode", runOpencodeStartupInference)
+    }
   })
 
   yield* log("Pylon v0.3 observational dashboard active.")
 
-  if (Bun.argv.includes("--smoke-dashboard") || Bun.env.PYLON_SMOKE_DASHBOARD === "1") {
+  if (smokeDashboard) {
     yield* log("Pylon v0.3 dashboard smoke complete.")
     renderer.stop?.()
     yield* Effect.sync(() => process.exit(0))
