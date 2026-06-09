@@ -21,6 +21,12 @@ import {
   writeBootstrapFiles,
 } from "./bootstrap"
 import { ensurePylonLocalState, projectPublicStatus } from "./state"
+import {
+  completePylonLink,
+  refreshPylonLink,
+  registerPylon,
+  sendHeartbeat,
+} from "./presence"
 
 // Global UI references for log aggregation and balance updates
 let globalRenderer: CliRenderer | null = null
@@ -339,8 +345,32 @@ const startMdkWalletService = Effect.gen(function* () {
 
 // Nostr Continuous Presence Heartbeat Loop
 const startPresenceHeartbeatLoop = Effect.gen(function* () {
-  yield* log("[Heartbeat] Presence service initialized (online, model_ready=true)")
+  yield* log("[Heartbeat] Presence service initialized.")
+  const baseUrl = Bun.env.PYLON_OPENAGENTS_BASE_URL
+  if (!baseUrl) {
+    yield* log("[Heartbeat] No OpenAgents base URL configured. Presence remains unregistered.")
+    return
+  }
+
+  const summary = createBootstrapSummary(parseBootstrapArgs(["--json"]), Bun.env)
+  yield* Effect.tryPromise({
+    try: () => registerPylon(summary, { baseUrl }),
+    catch: (error) => new Error(`presence registration failed: ${String(error)}`),
+  }).pipe(
+    Effect.catch((error) =>
+      log(`[Heartbeat] Registration blocked: ${error.message}`)
+    )
+  )
+
   while (true) {
+    yield* Effect.tryPromise({
+      try: () => sendHeartbeat(summary, { baseUrl }),
+      catch: (error) => new Error(`heartbeat failed: ${String(error)}`),
+    }).pipe(
+      Effect.catch((error) =>
+        log(`[Heartbeat] Heartbeat blocked: ${error.message}`)
+      )
+    )
     yield* Effect.sleep("30 seconds")
   }
 })
@@ -832,6 +862,21 @@ const runtimeCommandNamespaces = new Set([
   "omega",
 ])
 
+function parsePresenceOptions(args: string[]) {
+  const options: Record<string, string> = {}
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index]
+    if (!arg.startsWith("--")) continue
+    const value = args[index + 1]
+    if (!value || value.startsWith("--")) {
+      throw new Error(`${arg} requires a value`)
+    }
+    options[arg.slice(2)] = value
+    index += 1
+  }
+  return options
+}
+
 async function main() {
   const args = Bun.argv.slice(2)
 
@@ -864,6 +909,36 @@ async function main() {
     const state = await ensurePylonLocalState(summary)
     process.stdout.write(`${JSON.stringify(projectPublicStatus(state), null, 2)}\n`)
     return
+  }
+
+  if (args[0] === "presence") {
+    try {
+      const command = args[1]
+      const options = parsePresenceOptions(args.slice(2))
+      const baseUrl = options["base-url"] ?? Bun.env.PYLON_OPENAGENTS_BASE_URL
+      if (!baseUrl) {
+        throw new Error("presence commands require --base-url or PYLON_OPENAGENTS_BASE_URL")
+      }
+      const summary = createBootstrapSummary(parseBootstrapArgs(["--json"]), Bun.env)
+      const clientOptions = { baseUrl }
+      const result =
+        command === "register"
+          ? await registerPylon(summary, clientOptions)
+          : command === "heartbeat"
+            ? await sendHeartbeat(summary, clientOptions)
+            : command === "link-complete"
+              ? await completePylonLink(summary, clientOptions)
+              : command === "link-refresh"
+                ? await refreshPylonLink(summary, clientOptions)
+                : null
+      if (!result) throw new Error(`unknown presence command: ${command ?? ""}`)
+      process.stdout.write(`${JSON.stringify(result, null, 2)}\n`)
+      return
+    } catch (error) {
+      process.stderr.write(`Pylon presence failed: ${error instanceof Error ? error.message : String(error)}\n`)
+      process.exitCode = 1
+      return
+    }
   }
 
   if (args[0] === "runtime" || runtimeCommandNamespaces.has(args[0] ?? "")) {

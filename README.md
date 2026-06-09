@@ -45,6 +45,16 @@ tracked by later launch gates.
 `status --json` loads or creates the local identity/runtime state and emits a
 redacted public-safe projection for headless diagnostics.
 
+Presence commands are available for fake-server and later live endpoint
+integration:
+
+```sh
+pylon presence register --base-url https://openagents.com
+pylon presence heartbeat --base-url https://openagents.com
+pylon presence link-complete --base-url https://openagents.com
+pylon presence link-refresh --base-url https://openagents.com
+```
+
 The runtime includes:
 
 - Apple Foundation Models bridge support, readiness receipts, streaming tool

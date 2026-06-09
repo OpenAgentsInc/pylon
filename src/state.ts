@@ -10,6 +10,7 @@ export type PylonLifecycleState = "offline" | "online" | "paused" | "degraded" |
 export type PylonPaths = BootstrapSummary["paths"] & {
   identity: string
   runtimeState: string
+  presenceState: string
   ledger: string
 }
 
@@ -42,6 +43,20 @@ export type PylonLocalState = {
   paths: PylonPaths
   identity: PylonIdentity
   runtime: PylonRuntimeState
+  presence: PylonPresenceState
+}
+
+export type PylonPresenceState = {
+  registered: boolean
+  linked: boolean
+  stale: boolean
+  pylonRef: string
+  registrationRef: string | null
+  linkRef: string | null
+  lastHeartbeatAt: string | null
+  heartbeatSequence: number
+  blockerRefs: string[]
+  updatedAt: string
 }
 
 export type PublicProjection =
@@ -86,6 +101,7 @@ export function resolveStatePaths(paths: BootstrapSummary["paths"]): PylonPaths 
     ...paths,
     identity: `${paths.home}/identity.json`,
     runtimeState: `${paths.home}/runtime-state.json`,
+    presenceState: `${paths.home}/presence-state.json`,
     ledger: `${paths.home}/ledger.jsonl`,
   }
 }
@@ -158,6 +174,30 @@ export async function loadOrCreateRuntimeState(
   return state
 }
 
+export async function loadOrCreatePresenceState(paths: PylonPaths, identity: PylonIdentity) {
+  await ensureStateDirectories(paths)
+  const existing = await readJsonFile<PylonPresenceState>(paths.presenceState)
+  const state: PylonPresenceState = {
+    registered: existing?.registered ?? false,
+    linked: existing?.linked ?? false,
+    stale: existing?.stale ?? false,
+    pylonRef: existing?.pylonRef ?? identity.pylonRef,
+    registrationRef: existing?.registrationRef ?? null,
+    linkRef: existing?.linkRef ?? null,
+    lastHeartbeatAt: existing?.lastHeartbeatAt ?? null,
+    heartbeatSequence: existing?.heartbeatSequence ?? 0,
+    blockerRefs: existing?.blockerRefs ?? [],
+    updatedAt: new Date().toISOString(),
+  }
+  await writeFile(paths.presenceState, `${JSON.stringify(state, null, 2)}\n`)
+  return state
+}
+
+export async function writePresenceState(paths: PylonPaths, state: PylonPresenceState) {
+  await ensureStateDirectories(paths)
+  await writeFile(paths.presenceState, `${JSON.stringify({ ...state, updatedAt: new Date().toISOString() }, null, 2)}\n`)
+}
+
 export async function ensurePylonLocalState(summary: BootstrapSummary): Promise<PylonLocalState> {
   const paths = resolveStatePaths(summary.paths)
   const identity = await loadOrCreateIdentity(paths, {
@@ -169,6 +209,7 @@ export async function ensurePylonLocalState(summary: BootstrapSummary): Promise<
     resourceMode: summary.bootstrap.resourceMode,
     capabilityRefs: summary.bootstrap.capabilityRefs,
   })
+  const presence = await loadOrCreatePresenceState(paths, identity)
 
   return {
     schema: "openagents.pylon.local_state.v0.3",
@@ -177,6 +218,7 @@ export async function ensurePylonLocalState(summary: BootstrapSummary): Promise<
     paths,
     identity,
     runtime,
+    presence,
   }
 }
 
@@ -213,10 +255,10 @@ export function projectPublicStatus(state: PylonLocalState) {
       },
       identity: state.identity,
       runtime: state.runtime,
+      presence: state.presence,
     },
   } as const
 
   assertPublicProjectionSafe(projection)
   return projection
 }
-
