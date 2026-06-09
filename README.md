@@ -97,7 +97,7 @@ The runtime includes:
 - Psionic Qwen3.5 local inference is planned as an optional backend for the
   first pass with 0.8B and 2B rows. See
   `docs/2026-06-09-pylon-qwen35-local-inference-roadmap.md`; this is not a
-  training, bundled-model, auto-download, or paid-capacity claim.
+  training, bundled-model, startup auto-download, or paid-capacity claim.
 
 ## GEPA Capability Envelope
 
@@ -125,7 +125,9 @@ topology, or raw local model paths.
 
 The next local-model inventory target is the optional Psionic Qwen3.5 backend:
 `qwen3.5:0.8b` for lowest-footprint smoke/fallback and `qwen3.5:2b` for the
-first coding-agent tool-loop quality row.
+first coding-agent tool-loop quality row. Machines that cannot or do not want
+to run local ML should keep working with precise Psionic blocker refs and no
+binary/model download.
 
 ## Operator Snapshot
 

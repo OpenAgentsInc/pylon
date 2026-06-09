@@ -48,6 +48,12 @@ that attaches to a local or remote Psionic OpenAI-compatible server. Pylon
 should not bundle model weights, should not download model artifacts on normal
 startup, and should not claim training or paid capacity from this work.
 
+Psionic support should be an optional ML workload install path, not part of
+every Pylon install. A normal Pylon install should remain small and should
+report `blocker.psionic_qwen35.connector_unconfigured` when Psionic is absent.
+Only users with a compatible machine and an explicit desire to run local ML
+workloads should download the Psionic binary and Qwen artifacts.
+
 The smallest useful first pass is an attach-only backend:
 
 1. operator starts or installs Psionic;
@@ -149,6 +155,40 @@ The Pylon first pass should assume attach mode:
 Pylon should not start Psionic implicitly until the signed sidecar release and
 process-supervision gates exist. For the first pass, `pylon psionic doctor`
 should explain how to start the server and verify the configured base URL.
+
+## Optional Download Policy
+
+The default `@openagentsinc/pylon` install should not include Psionic binaries
+or Qwen model weights.
+
+Add an explicit opt-in flow after attach-only support works:
+
+```sh
+pylon psionic doctor
+pylon psionic install --channel rc
+pylon psionic models install qwen35-0_8b-q8_0
+pylon psionic models install qwen35-2b-q8_0
+```
+
+The install flow should run machine checks before downloading anything:
+
+- supported platform: macOS or Linux;
+- supported architecture: `darwin-arm64`, `linux-x64`, or `linux-arm64`;
+- backend viability: Metal, CUDA, or admitted CPU fallback;
+- memory and disk budgets;
+- no competing model workload if the installer is about to run a local smoke;
+- signed Psionic release manifest verification;
+- signed or digested model artifact manifest verification;
+- explicit operator consent for each model artifact.
+
+If a machine cannot run local ML workloads, Pylon should stay usable. It should
+keep the Psionic backend blocked with precise blocker refs and continue using
+other configured backends such as OpenCode, Apple FM, or Gemini. Psionic absence
+must not break registration, wallet readiness, GEPA no-spend work, or normal
+coding-agent operation.
+
+This keeps Qwen local inference available to capable machines without turning
+the v0.3 package into a heavy ML distribution.
 
 ## Pylon Backend Design
 
@@ -364,7 +404,8 @@ Add specific blockers:
   `docs/2026-06-09-pylon-psionic-ml-connection-audit.md`.
 - Add signed Psionic release manifest verification.
 - Add model artifact manifest verification for 0.8B and 2B.
-- Add opt-in artifact download, never startup auto-download.
+- Add opt-in Psionic binary and artifact download, never startup
+  auto-download.
 - Add cache-by-digest layout.
 
 ## Copy Rules
