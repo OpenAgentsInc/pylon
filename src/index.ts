@@ -44,6 +44,7 @@ import {
   type PylonAssignmentLease,
 } from "./assignment"
 import { discoverHostInventory } from "./inventory"
+import { createOperatorSnapshot, formatOperatorSnapshotText } from "./operator"
 
 // Global UI references for log aggregation and balance updates
 let globalRenderer: CliRenderer | null = null
@@ -51,8 +52,10 @@ let logScrollBox: ScrollBoxRenderable | null = null
 let balanceTextRenderable: TextRenderable | null = null
 let statusTextRenderable: TextRenderable | null = null
 let telemetryTextRenderable: TextRenderable | null = null
+let operatorTextRenderable: TextRenderable | null = null
 
 const logHistory: string[] = []
+const maxLogHistoryEntries = 1000
 const terminalScrollLockOn = "\x1b[?1007h"
 const terminalScrollLockOff = "\x1b[?1007l"
 const sgrMousePattern = /\x1b\[<(\d+);(\d+);(\d+)([mM])/g
@@ -82,6 +85,9 @@ function logToUi(message: string) {
   const now = new Date()
   const timestamp = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}:${String(now.getSeconds()).padStart(2, "0")}`
   logHistory.push(`[${timestamp}] ${message}`)
+  if (logHistory.length > maxLogHistoryEntries) {
+    logHistory.splice(0, logHistory.length - maxLogHistoryEntries)
+  }
 
   if (logScrollBox && globalRenderer) {
     const line = makeLogMarkdown(globalRenderer, {
@@ -246,6 +252,10 @@ function makeLogMarkdown(
 function handleLogKey(key: any, focusComposer?: () => void) {
   if (key.name === "tab") {
     focusComposer?.()
+  } else if (key.name === "up") {
+    scrollLogBy(-1, "step")
+  } else if (key.name === "down") {
+    scrollLogBy(1, "step")
   } else if (key.name === "pageup") {
     scrollLogBy(-0.8, "viewport")
   } else if (key.name === "pagedown") {
@@ -291,6 +301,21 @@ const startHardwareTelemetryLoop = Effect.gen(function* () {
       const vram = inventory.accelerator.vramGb === null ? "--" : `${inventory.accelerator.vramGb.toFixed(1)} GB`
       const state = inventory.eligibleInventoryCount > 0 ? "INVENTORY FRESH" : "INVENTORY BLOCKED"
       updateTelemetryState(state, model, vram)
+      if (operatorTextRenderable) {
+        const wallet = {
+          schema: "openagents.pylon.wallet_status.v0.3" as const,
+          configured: false,
+          daemonOnline: false,
+          balanceSats: null,
+          receiveReady: false,
+          sendReady: false,
+          readiness: "daemon-offline" as const,
+          blockerRefs: ["blocker.wallet.daemon_offline"],
+          payoutTargetRefs: [],
+          settlementRefs: [],
+        }
+        operatorTextRenderable.content = formatOperatorSnapshotText(createOperatorSnapshot({ inventory, wallet }))
+      }
     })
     yield* Effect.sleep("10 seconds")
   }
@@ -695,6 +720,15 @@ const runPylonNode = Effect.gen(function* () {
   })
   rightPanel.add(telemetryTextRenderable)
 
+  rightPanel.add(new TextRenderable(renderer, { content: " ---------------------------------", fg: parseColor("#3B5B82"), height: 1 }))
+  operatorTextRenderable = new TextRenderable(renderer, {
+    content: " Operate: loading\n Inspect: loading\n Recovery: loading",
+    fg: parseColor("#D7E5FA"),
+    width: "100%",
+    flexGrow: 1,
+  })
+  rightPanel.add(operatorTextRenderable)
+
   // 4. Create Composer Input Panel (Bottom, Height 5)
   const composerBox = new BoxRenderable(renderer, {
     border: true,
@@ -910,6 +944,14 @@ async function main() {
   if (args[0] === "inventory" && args.includes("--json")) {
     const inventory = await discoverHostInventory({ env: Bun.env })
     process.stdout.write(`${JSON.stringify(inventory, null, 2)}\n`)
+    return
+  }
+
+  if (args[0] === "operator" && args[1] === "snapshot" && args.includes("--json")) {
+    const inventory = await discoverHostInventory({ env: Bun.env })
+    const wallet = await classifyMdkWallet()
+    const snapshot = createOperatorSnapshot({ inventory, wallet })
+    process.stdout.write(`${JSON.stringify(snapshot, null, 2)}\n`)
     return
   }
 

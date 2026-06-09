@@ -118,3 +118,14 @@ supported platform, CPU/memory/disk counts, network counts, accelerator class,
 backend health refs, model-cache state, and blocker refs. The projection does
 not expose interface names, cache paths, env dumps, provider auth, private
 topology, or raw local model paths.
+
+## Operator Snapshot
+
+```sh
+pylon operator snapshot --json
+```
+
+The default dashboard includes bounded operate, wallet, inspect, and recovery
+state. The headless snapshot is for support and service-manager runs: it shows
+refs, blockers, readiness, and recovery gates without exposing raw wallet
+material, provider tokens, private repo content, or local cache paths.
