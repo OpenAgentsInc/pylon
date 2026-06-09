@@ -11,6 +11,12 @@ import {
   type PylonLocalState,
 } from "./state"
 import { classifyMdkWallet, type WalletCommandRunner } from "./wallet"
+import {
+  admitGepaAssignmentToEnvelope,
+  createDefaultGepaCapabilityEnvelope,
+  type PylonGepaAssignmentRequirements,
+  type PylonGepaCapabilityEnvelope,
+} from "./gepa-capability"
 
 export type AssignmentPaymentMode = "no-spend" | "paid"
 export type AssignmentStatus = "offered" | "accepted" | "running" | "closed" | "rejected" | "cancelled" | "timed-out" | "stale"
@@ -23,6 +29,7 @@ export type PylonAssignmentLease = {
   paymentMode: AssignmentPaymentMode
   capabilityRefs: string[]
   backendRef?: string
+  gepaRequirements?: PylonGepaAssignmentRequirements
   expiresAt: string
   createdAt?: string
 }
@@ -76,6 +83,7 @@ export type AssignmentClientOptions = {
   now?: () => Date
   staleAfterMs?: number
   walletRunner?: WalletCommandRunner
+  gepaEnvelope?: PylonGepaCapabilityEnvelope
 }
 
 type AssignmentStore = {
@@ -148,6 +156,11 @@ export async function computeAssignmentAdmission(
   if (!hasRequiredCapabilities(state, lease)) blockerRefs.add("blocker.assignment.wrong_capability")
   if (lease.backendRef && !state.runtime.capabilityRefs.includes(lease.backendRef)) {
     blockerRefs.add("blocker.assignment.unsupported_backend")
+  }
+  if (lease.gepaRequirements) {
+    const envelope = options.gepaEnvelope ?? createDefaultGepaCapabilityEnvelope()
+    const gepaAdmission = admitGepaAssignmentToEnvelope(envelope, lease.gepaRequirements)
+    for (const blockerRef of gepaAdmission.blockerRefs) blockerRefs.add(blockerRef)
   }
   if (isExpired(lease, now)) blockerRefs.add("blocker.assignment.lease_expired")
   if (lease.paymentMode === "paid") {

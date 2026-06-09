@@ -94,3 +94,15 @@ The runtime includes:
   fixtures.
 - GEPA/Terminal-Bench candidate execution, closeout bundles, token telemetry,
   runner identity, and Omega grant/account contracts.
+
+## GEPA Capability Envelope
+
+`src/gepa-capability.ts` maps v0.3 assignment leases onto the in-repo benchmark
+runtime contracts. The rc envelope is GEPA-first: retained Terminal-Bench
+fixtures, Probe runtime backend refs, artifact upload refs, proof/receipt refs,
+assignment closeout refs, local sandbox isolation, wall-clock/cost budgets, and
+capacity fields are modeled separately from payout readiness.
+
+This does not advertise neural training or Qwen work. Those tracks remain
+postponed until the GEPA lease, closeout, import, and payment-mode gates are
+solid.
