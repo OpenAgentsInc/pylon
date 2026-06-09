@@ -452,6 +452,13 @@ const runPylonNode = Effect.gen(function* () {
   // Focus on Composer Input
   composerInput.focus()
 
+  if (Bun.argv.includes("--smoke-dashboard") || Bun.env.PYLON_SMOKE_DASHBOARD === "1") {
+    yield* log("Pylon v0.3 dashboard smoke complete.")
+    renderer.stop?.()
+    yield* Effect.sync(() => process.exit(0))
+    return
+  }
+
   // Start Background Services as Concurrent Fibers
   const telemetryFiber = yield* Effect.fork(startHardwareTelemetryLoop)
   const walletFiber = yield* Effect.fork(startMdkWalletService)
@@ -486,7 +493,7 @@ async function main() {
 
   await Effect.runPromise(
     runPylonNode.pipe(
-      Effect.catchAll((error) =>
+      Effect.catch((error) =>
         Console.error(`Pylon v0.3 crashed on startup: ${error.message}`)
       )
     )

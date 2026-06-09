@@ -44,6 +44,7 @@
     "start": "bun src/index.ts",
     "runtime": "bun --cwd packages/runtime src/cli.ts",
     "runtime:test": "bun run --cwd packages/runtime test",
+    "smoke:dashboard": "bun src/index.ts --smoke-dashboard",
     "test": "bun test"
   },
   "dependencies": {
