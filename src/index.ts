@@ -1,13 +1,14 @@
 import { Effect, Console } from "effect"
-import { createCliRenderer, BoxRenderable, TextRenderable, ScrollBoxRenderable, parseColor } from "@opentui/core"
+import { createCliRenderer, BoxRenderable, TextRenderable, ScrollBoxRenderable, parseColor, type CliRenderer } from "@opentui/core"
 
 // Global UI reference for log aggregation
+let globalRenderer: CliRenderer | null = null
 let logScrollBox: ScrollBoxRenderable | null = null
 
 function logToUi(message: string) {
-  if (logScrollBox) {
+  if (logScrollBox && globalRenderer) {
     const timestamp = new Date().toISOString().slice(11, 19)
-    const line = new TextRenderable(logScrollBox.renderer, {
+    const line = new TextRenderable(globalRenderer, {
       content: `[${timestamp}] ${message}`,
       fg: parseColor("#A5D6FF"),
       width: "100%",
@@ -86,6 +87,9 @@ const runPylonNode = Effect.gen(function* () {
       }),
     catch: (error) => new Error(`Failed to initialize OpenTUI renderer: ${String(error)}`),
   })
+
+  // Set the global renderer reference
+  globalRenderer = renderer
 
   // Create UI Container Layout with borders
   const mainBox = new BoxRenderable(renderer, {
