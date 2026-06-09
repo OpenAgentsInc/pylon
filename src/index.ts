@@ -102,8 +102,21 @@ const startMdkWalletService = Effect.gen(function* () {
     Effect.gen(function* () {
       const balance = yield* Effect.tryPromise({
         try: async () => {
-          const proc = Bun.spawn(["npx", "@moneydevkit/agent-wallet", "balance"])
-          const stdout = await new Response(proc.stdout).text()
+          const proc = Bun.spawn(["npx", "--yes", "@moneydevkit/agent-wallet", "balance"], {
+            stdout: "pipe",
+            stderr: "pipe",
+          })
+          
+          // Implement a strict 3-second timeout to prevent npx download hangs
+          const textPromise = new Response(proc.stdout).text()
+          const timeoutPromise = new Promise<string>((_, reject) =>
+            setTimeout(() => {
+              proc.kill()
+              reject(new Error("Timeout"))
+            }, 3000)
+          )
+          
+          const stdout = await Promise.race([textPromise, timeoutPromise])
           const data = JSON.parse(stdout)
           if (data && typeof data.balance === "number") {
             return data.balance
