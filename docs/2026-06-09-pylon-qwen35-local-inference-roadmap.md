@@ -160,32 +160,39 @@ The Pylon first pass should assume attach mode:
 
 Pylon should not start Psionic implicitly until the signed sidecar release and
 process-supervision gates exist. For the first pass,
-`pylon backend psionic doctor` explains how to verify the configured base URL.
+`pylon backend psionic doctor` and its alias `pylon psionic doctor` explain how
+to verify the configured base URL.
 
 ## Optional Download Policy
 
 The default `@openagentsinc/pylon` install should not include Psionic binaries
 or Qwen model weights.
 
-Add an explicit opt-in flow after attach-only support works:
+The explicit opt-in flow is now scaffolded and guarded:
 
 ```sh
-pylon backend psionic doctor
-pylon psionic install --channel rc
-pylon psionic models install qwen35-0_8b-q8_0
-pylon psionic models install qwen35-2b-q8_0
+pylon psionic doctor --json
+pylon psionic install --channel rc --manifest-url <release-manifest-url> --yes
+pylon psionic models install qwen35-0_8b-q8_0 --manifest-url <model-manifest-url> --yes
+pylon psionic models install qwen35-2b-q8_0 --manifest-url <model-manifest-url> --yes
 ```
 
-The install flow should run machine checks before downloading anything:
+The install flow runs machine checks before downloading anything:
 
 - supported platform: macOS or Linux;
 - supported architecture: `darwin-arm64`, `linux-x64`, or `linux-arm64`;
-- backend viability: Metal, CUDA, or admitted CPU fallback;
+- backend viability: Metal on `darwin-arm64`, admitted CPU fallback on Linux;
 - memory and disk budgets;
 - no competing model workload if the installer is about to run a local smoke;
-- signed Psionic release manifest verification;
-- signed or digested model artifact manifest verification;
+- Psionic release manifest verification;
+- model artifact manifest verification;
+- SHA-256 verification before binary/model placement;
+- digest-addressed cache placement under the Pylon cache;
 - explicit operator consent for each model artifact.
+
+Current manifest URLs are operator- or env-supplied. The installer does not yet
+ship bundled Psionic manifest URLs because Psionic still needs to publish the
+Pylon-consumable signed sidecar/model manifests tracked in the Psionic repo.
 
 If a machine cannot run local ML workloads, Pylon should stay usable. It should
 keep the Psionic backend blocked with precise blocker refs and continue using
@@ -450,11 +457,16 @@ Add specific blockers:
 
 - Reuse the Psionic sidecar plan in
   `docs/2026-06-09-pylon-psionic-ml-connection-audit.md`.
-- Add signed Psionic release manifest verification.
-- Add model artifact manifest verification for 0.8B and 2B.
-- Add opt-in Psionic binary and artifact download, never startup
+- Implemented: opt-in Psionic binary/model installer scaffold, never startup
   auto-download.
-- Add cache-by-digest layout.
+- Implemented: release/model manifest verification and SHA-256 verification
+  before placement.
+- Implemented: digest-addressed binary/model cache layout.
+- Remaining: publish Psionic-owned signed release/model manifests.
+- Remaining: wire default manifest discovery once Psionic publishes those
+  manifests.
+- Remaining: add sidecar process supervision after signed release identity
+  exists.
 
 ## Copy Rules
 

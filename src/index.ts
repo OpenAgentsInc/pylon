@@ -45,6 +45,10 @@ import {
 } from "./assignment"
 import { discoverHostInventory } from "./inventory"
 import { createOperatorSnapshot, formatOperatorSnapshotText } from "./operator"
+import {
+  installPsionicBinary,
+  installPsionicModelArtifact,
+} from "./psionic-install"
 
 // Global UI references for log aggregation and balance updates
 let globalRenderer: CliRenderer | null = null
@@ -906,6 +910,28 @@ function parseKeyValueOptions(args: string[]) {
   return parsePresenceOptions(args)
 }
 
+function parsePsionicOptions(args: string[]) {
+  const options: Record<string, string | true> = {}
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index]
+    if (!arg.startsWith("--")) continue
+    const key = arg.slice(2)
+    const value = args[index + 1]
+    if (!value || value.startsWith("--")) {
+      options[key] = true
+      continue
+    }
+    options[key] = value
+    index += 1
+  }
+  return options
+}
+
+function stringPsionicOption(options: Record<string, string | true>, key: string) {
+  const value = options[key]
+  return typeof value === "string" ? value : undefined
+}
+
 async function main() {
   const args = Bun.argv.slice(2)
 
@@ -953,6 +979,52 @@ async function main() {
     const snapshot = createOperatorSnapshot({ inventory, wallet })
     process.stdout.write(`${JSON.stringify(snapshot, null, 2)}\n`)
     return
+  }
+
+  if (args[0] === "psionic") {
+    try {
+      const command = args[1]
+      if (command === "doctor") {
+        const result = await Effect.runPromise(runProbeCli(["backend", "psionic", "doctor", ...args.slice(2)], { env: Bun.env }))
+        if (result.stdout) process.stdout.write(result.stdout)
+        if (result.stderr) process.stderr.write(result.stderr)
+        process.exitCode = result.exitCode
+        return
+      }
+
+      const options = parsePsionicOptions(args.slice(command === "models" ? 4 : 2))
+      const summary = createBootstrapSummary(parseBootstrapArgs(["--json"]), Bun.env)
+      if (command === "install") {
+        const result = await installPsionicBinary(summary, {
+          channel: stringPsionicOption(options, "channel") ?? "rc",
+          manifestUrl: stringPsionicOption(options, "manifest-url"),
+          consent: options.yes === true,
+          env: Bun.env,
+        })
+        process.stdout.write(`${JSON.stringify(result, null, 2)}\n`)
+        process.exitCode = result.state === "installed" ? 0 : 1
+        return
+      }
+
+      if (command === "models" && args[2] === "install") {
+        const modelKey = args[3]
+        const result = await installPsionicModelArtifact(summary, {
+          modelKey,
+          manifestUrl: stringPsionicOption(options, "manifest-url"),
+          consent: options.yes === true,
+          env: Bun.env,
+        })
+        process.stdout.write(`${JSON.stringify(result, null, 2)}\n`)
+        process.exitCode = result.state === "installed" ? 0 : 1
+        return
+      }
+
+      throw new Error(`unknown psionic command: ${args.slice(1).join(" ")}`)
+    } catch (error) {
+      process.stderr.write(`Pylon Psionic installer failed: ${error instanceof Error ? error.message : String(error)}\n`)
+      process.exitCode = 1
+      return
+    }
   }
 
   if (args[0] === "presence") {

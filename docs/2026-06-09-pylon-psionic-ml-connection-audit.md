@@ -211,6 +211,25 @@ Reasons:
 Pylon may bundle TypeScript schema validators and connector clients. It should
 not bundle Psionic model weights or heavy backend binaries for v0.3.
 
+Current Pylon implementation:
+
+- default package installation does not include Psionic binaries or model
+  weights;
+- startup does not download or launch Psionic;
+- `pylon psionic install --channel rc --manifest-url <url> --yes` verifies a
+  Psionic release manifest and SHA-256 before placing a binary in the
+  digest-addressed Pylon cache;
+- `pylon psionic models install <model-key> --manifest-url <url> --yes`
+  verifies a model artifact manifest and SHA-256 before placing the artifact
+  in the digest-addressed Pylon cache;
+- unsupported machine, missing consent, missing manifest, digest mismatch,
+  memory, disk, and competing-workload failures return blocker refs before
+  placement.
+
+The remaining gap is Psionic publication of signed Pylon-consumable release and
+model manifests. Until that exists, Pylon requires explicit manifest URLs or env
+manifest overrides and does not claim one-command Psionic provisioning.
+
 ## Model Artifact Policy
 
 Pylon should never download raw model files just because the app starts.
@@ -231,6 +250,10 @@ Required model artifact gates:
 
 Public projections should carry refs and digests, not raw local paths, secrets,
 or private topology.
+
+Implemented Pylon installer projections follow
+`openagents.pylon.psionic_install.v0.3` and expose only platform refs, backend
+refs, artifact refs, digest refs, cache refs, blocker refs, and redaction state.
 
 ## Sidecar Security Boundary
 
@@ -323,9 +346,9 @@ be widened into a Psionic-backed ML gate family:
 3. Add fake Psionic sidecar tests that stream status and emit a receipt.
 4. Wire GEPA assignments to carry optional Psionic candidate manifest refs.
 5. Add Psionic closeout receipt refs to Pylon artifact/proof bundles.
-6. Add signed release manifest verification for sidecar downloads.
-7. Add sidecar install/cache layout for macOS and Linux only.
-8. Add model artifact manifest verifier and cache policy.
+6. Publish Psionic signed release/model manifests for Pylon consumption.
+7. Wire default manifest discovery to the existing Pylon installer.
+8. Add sidecar process supervision once release identity exists.
 9. Add launch gate blockers for every unsupported ML/training claim.
 10. Add the attach-only Qwen3.5 0.8B/2B inference backend described in
     `docs/2026-06-09-pylon-qwen35-local-inference-roadmap.md`.
