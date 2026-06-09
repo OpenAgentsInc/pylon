@@ -8,6 +8,7 @@ import {
   ScrollBoxRenderable,
   MarkdownRenderable,
   TextareaRenderable,
+  MacOSScrollAccel,
   parseColor,
   SyntaxStyle,
   type CliRenderer
@@ -24,6 +25,7 @@ let telemetryTextRenderable: TextRenderable | null = null
 const logHistory: string[] = []
 const terminalScrollLockOn = "\x1b[?1007h"
 const terminalScrollLockOff = "\x1b[?1007l"
+const sgrMousePattern = /\x1b\[<(\d+);(\d+);(\d+)([mM])/g
 
 const syntaxStyle = SyntaxStyle.fromStyles({
   default: { fg: parseColor("#E6EDF3") },
@@ -117,21 +119,66 @@ function scrollLogBy(delta: number, unit: "absolute" | "viewport" | "content" | 
   logScrollBox?.scrollBy(delta, unit)
 }
 
+function isPointInsideLogScrollBox(x: number, y: number) {
+  if (!logScrollBox) return false
+  const box = logScrollBox as any
+  const left = box.screenX ?? box.x ?? 0
+  const top = box.screenY ?? box.y ?? 0
+  const width = box.width ?? 0
+  const height = box.height ?? 0
+
+  return x >= left && x < left + width && y >= top && y < top + height
+}
+
+function scrollLogByWheelButton(button: number) {
+  if (!logScrollBox) return false
+  const wheelButton = button & 0b11
+  const step = Math.max(3, Math.ceil((logScrollBox.viewport?.height ?? logScrollBox.height ?? 15) / 6))
+
+  if (wheelButton === 0) {
+    logScrollBox.scrollBy(-step)
+    return true
+  }
+  if (wheelButton === 1) {
+    logScrollBox.scrollBy(step)
+    return true
+  }
+  if (wheelButton === 2) {
+    logScrollBox.scrollBy({ x: -step, y: 0 })
+    return true
+  }
+  if (wheelButton === 3) {
+    logScrollBox.scrollBy({ x: step, y: 0 })
+    return true
+  }
+
+  return false
+}
+
+function handleRawLogWheel(sequence: string) {
+  if (!logScrollBox) return false
+  let handled = false
+  sgrMousePattern.lastIndex = 0
+
+  for (const match of sequence.matchAll(sgrMousePattern)) {
+    const button = Number(match[1])
+    if ((button & 64) !== 64) continue
+
+    const x = Number(match[2]) - 1
+    const y = Number(match[3]) - 1
+    if (!isPointInsideLogScrollBox(x, y)) continue
+
+    logScrollBox.focus()
+    handled = scrollLogByWheelButton(button) || handled
+  }
+
+  return handled
+}
+
 function scrollLogFromWheel(event: any) {
   if (!logScrollBox || event.type !== "scroll") return false
-  const direction = event.scroll?.direction
-  const delta = Math.max(1, Math.round(event.scroll?.delta ?? 3))
-  if (direction === "up") {
-    logScrollBox.scrollTop = logScrollBox.scrollTop - delta
-  } else if (direction === "down") {
-    logScrollBox.scrollTop = logScrollBox.scrollTop + delta
-  } else if (direction === "left") {
-    logScrollBox.scrollLeft = logScrollBox.scrollLeft - delta
-  } else if (direction === "right") {
-    logScrollBox.scrollLeft = logScrollBox.scrollLeft + delta
-  } else {
-    return false
-  }
+
+  ;(logScrollBox as any).onMouseEvent?.(event)
   return true
 }
 
@@ -527,6 +574,7 @@ const runPylonNode = Effect.gen(function* () {
         useMouse: true,
         autoFocus: true,
         targetFps: 30,
+        prependInputHandlers: [handleRawLogWheel],
       }),
     catch: (error) => new Error(`Failed to initialize OpenTUI renderer: ${String(error)}`),
   })
@@ -566,6 +614,7 @@ const runPylonNode = Effect.gen(function* () {
     scrollY: true,
     stickyScroll: true,
     stickyStart: "bottom",
+    scrollAcceleration: new MacOSScrollAccel(),
     focusable: true,
     flexGrow: 1,
     width: "100%",
