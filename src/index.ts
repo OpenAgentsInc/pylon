@@ -61,19 +61,55 @@ const runOpencodeStartupInference = Effect.gen(function* () {
     const result = yield* Effect.tryPromise({
       try: async () => {
         const proc = Bun.spawn(
-          [opencodePath, "run", "Say 'Hello, World!' in one short sentence."],
+          [
+            opencodePath,
+            "run",
+            "Say 'Hello, World!' in one short sentence.",
+            "--model",
+            "opencode/deepseek-v4-flash-free",
+            "--format",
+            "json",
+          ],
           {
             stdout: "pipe",
             stderr: "pipe",
           }
         )
         const stdout = await new Response(proc.stdout).text()
-        return stdout.trim()
+        
+        let textResult = ""
+        let finalCost: number | null = null
+        let totalTokens: number | null = null
+        
+        for (const line of stdout.split("\n")) {
+          if (!line.trim()) continue
+          try {
+            const event = JSON.parse(line)
+            if (event.type === "text" && event.part && event.part.text) {
+              textResult += event.part.text
+            }
+            if (event.type === "step_finish" && event.part && event.part.tokens) {
+              finalCost = event.part.cost ?? 0
+              totalTokens = event.part.tokens.total ?? 0
+            }
+          } catch {
+            // Ignore parse errors or other system outputs
+          }
+        }
+        
+        return {
+          text: textResult.trim(),
+          cost: finalCost,
+          tokens: totalTokens,
+        }
       },
       catch: (error) => new Error(`Failed to execute OpenCode inference: ${String(error)}`),
     })
     
-    yield* log(`[OpenCode] Inference Response: "${result}"`)
+    yield* log(`[OpenCode] Inference Response: "${result.text}"`)
+    if (result.cost !== null && result.tokens !== null) {
+      yield* log(`[OpenCode] Model: "opencode/deepseek-v4-flash-free" | Cost: $${result.cost.toFixed(4)} | Tokens: ${result.tokens}`)
+    }
   } else {
     yield* log("[OpenCode] OpenCode CLI is not installed on this system.")
   }
